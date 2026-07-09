@@ -524,8 +524,20 @@ document.addEventListener('DOMContentLoaded',()=>{
 </script>
 
 
-<button id="installBtn" style="display:none;position:fixed;right:15px;bottom:90px;z-index:9999;background:#2563eb;color:#fff;padding:12px 18px;border:none;border-radius:12px;font-weight:bold;">📲 앱설치</button>
-
+<button id="installBtn"
+style="
+position:fixed;
+right:15px;
+bottom:90px;
+z-index:9999;
+background:#2563eb;
+color:#fff;
+padding:12px 16px;
+border:none;
+border-radius:12px;
+font-weight:bold;">
+앱 설치
+</button>
 <script>
 if ('serviceWorker' in navigator) {
  window.addEventListener('load', async ()=>{
@@ -555,6 +567,12 @@ document.addEventListener('DOMContentLoaded',()=>{
  });
 });
 </script>
-
+<script>
+if(window.matchMedia('(display-mode: standalone)').matches){
+ document.getElementById('installBtn').style.display='none';
+}else{
+ document.getElementById('installBtn').style.display='block';
+}
+</script>
 </body>
 </html>

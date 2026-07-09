@@ -13,6 +13,8 @@
         .safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom) + 80px); }
     </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2563eb">
 </head>
 <body class="bg-gray-50 text-gray-900 antialiased safe-bottom">
 
@@ -522,6 +524,37 @@ document.addEventListener('DOMContentLoaded',()=>{
 </script>
 
 
-<button id="installBtn" style="position:fixed;right:15px;bottom:90px;z-index:9999;">앱설치</button>
+<button id="installBtn" style="display:none;position:fixed;right:15px;bottom:90px;z-index:9999;background:#2563eb;color:#fff;padding:12px 18px;border:none;border-radius:12px;font-weight:bold;">📲 앱설치</button>
+
+<script>
+if ('serviceWorker' in navigator) {
+ window.addEventListener('load', async ()=>{
+   try {
+     await navigator.serviceWorker.register('./service-worker.js');
+   } catch(e){ console.log(e); }
+ });
+}
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',(e)=>{
+ e.preventDefault();
+ deferredPrompt=e;
+ const btn=document.getElementById('installBtn');
+ if(btn) btn.style.display='block';
+});
+document.addEventListener('DOMContentLoaded',()=>{
+ const btn=document.getElementById('installBtn');
+ btn?.addEventListener('click',async()=>{
+   if(!deferredPrompt){
+     alert('앱 설치 조건이 아직 충족되지 않았습니다.');
+     return;
+   }
+   deferredPrompt.prompt();
+   await deferredPrompt.userChoice;
+   deferredPrompt=null;
+   btn.style.display='none';
+ });
+});
+</script>
+
 </body>
 </html>

@@ -1,4 +1,3 @@
-
 const CACHE='depth-v49';
 self.addEventListener('install',e=>{
  self.skipWaiting();

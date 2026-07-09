@@ -1,7 +1,8 @@
 {
   "name": "심도측정",
   "short_name": "심도측정",
-  "start_url": "./index.html",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2563eb",

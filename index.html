@@ -311,7 +311,10 @@ document.addEventListener('DOMContentLoaded',()=>{
    const ws=XLSX.utils.json_to_sheet(rows);
    const wb=XLSX.utils.book_new();
    XLSX.utils.book_append_sheet(wb,ws,'심도측정');
-   XLSX.writeFile(wb,'심도측정자료.xlsx');
+   const manageNo = data[0]?.manageNo || '심도측정';
+    const now = new Date();
+    const ymd = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+    XLSX.writeFile(wb, `${manageNo}_심도측정_${ymd}.xlsx`);
  });
 });
 </script>

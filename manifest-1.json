@@ -1,0 +1,10 @@
+{
+"name":"심도측정",
+"short_name":"심도측정",
+"description":"GPS 기반 심도측정 시스템",
+"start_url":"./",
+"display":"standalone",
+"background_color":"#ffffff",
+"theme_color":"#2563eb",
+"orientation":"portrait"
+}

@@ -229,7 +229,7 @@ document.addEventListener('DOMContentLoaded',()=>{
      const v=parseFloat(input.value);
      if(isNaN(v)){alert('심도를 입력하세요.');return;}
      const arr=loadRecords();
-     const addr=(document.body.innerText.match(/대구광역시[^\n]*/)||[''])[0];const now=new Date();
+     const addr=(document.getElementById('roadAddr')?.textContent||document.getElementById('jibunAddr')?.textContent||'');const now=new Date();
 const time=`${now.getFullYear()}. ${String(now.getMonth()+1).padStart(2,'0')}. ${String(now.getDate()).padStart(2,'0')}. ${now.getHours()<12?'오전':'오후'} ${String((now.getHours()%12)||12).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
 const manageNo=document.getElementById('manageNo')?.value||'';
 arr.push({manageNo,depth:v,time:time,address:addr,latitude:currentLat,longitude:currentLng,accuracy:currentAcc});

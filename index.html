@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>심도측정 시스템 V0.0 (Kakao)</title>
+    <title>심도측정 시스템 V0.1 (Kakao)</title>
     <!-- Tailwind CSS CDN 및 FontAwesome 아이콘 적용 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -26,7 +26,7 @@
     <!-- 1. 상단 고정 헤더 -->
     <header class="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center shadow-sm">
         <h1 class="text-lg font-bold text-blue-600 flex items-center gap-2">
-            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V0.0</span>
+            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V0.1</span>
         </h1>
         <div class="flex items-center gap-1.5 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium text-gray-700">
             <i class="fa-solid fa-circle-user text-gray-500"></i>
@@ -79,6 +79,9 @@
     <option value="0">제한 없음</option>
   </select>
 </div>
+<button type="button" id="mapFixBtn" disabled class="w-full mt-1 py-2.5 rounded-lg text-sm font-semibold border border-purple-200 bg-purple-50 text-purple-700 disabled:opacity-40">
+  <i class="fa-solid fa-map-location-dot mr-1"></i> 지도에서 위치 보정
+</button>
 
 </section>
 
@@ -121,15 +124,16 @@
             <div class="grid grid-cols-3 gap-2">
                 <div class="bg-gray-50 p-2.5 rounded-lg text-center border border-gray-100">
                     <p class="text-xs text-gray-400 font-medium mb-0.5">총 건수</p>
-                    <p class="text-lg font-bold text-gray-800">2 <span class="text-xs font-normal text-gray-500">건</span></p>
+                    <p id="statCount" class="text-lg font-bold text-gray-800">0 <span class="text-xs font-normal text-gray-500">건</span></p>
+                    <p id="statTotal" class="text-[10px] text-gray-400">전체 0건</p>
                 </div>
                 <div class="bg-blue-50/50 p-2.5 rounded-lg text-center border border-blue-50">
                     <p class="text-xs text-blue-500 font-medium mb-0.5">평균 심도</p>
-                    <p class="text-lg font-bold text-blue-600">1.15<span class="text-xs font-normal text-blue-500">m</span></p>
+                    <p id="statAvg" class="text-lg font-bold text-blue-600">-</p>
                 </div>
                 <div class="bg-gray-50 p-2.5 rounded-lg text-center border border-gray-100">
                     <p class="text-xs text-gray-400 font-medium mb-0.5">최대/최소</p>
-                    <p class="text-sm font-bold text-gray-700 mt-1">1.20 / 1.10</p>
+                    <p id="statMaxMin" class="text-sm font-bold text-gray-700 mt-1">- / -</p>
                 </div>
             </div>
         </section>
@@ -141,6 +145,11 @@
                     <i class="fa-solid fa-list-ul text-blue-500"></i> 최근 저장 이력
                 </h2>
                 <span id="lastSavedTime" class="ml-auto text-xs text-gray-400 text-right"></span>
+            </div>
+            <div id="backupReminder" style="display:none" class="items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 text-xs">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span data-msg class="flex-1 font-semibold"></span>
+                <button type="button" id="backupNowBtn" class="bg-amber-500 text-white font-bold px-3 py-1.5 rounded-md">지금 백업</button>
             </div>
             <!-- 리스트 제어 서브 버튼 -->
             <div class="grid grid-cols-2 gap-2 pt-1">
@@ -185,7 +194,21 @@ function showToast(message, type){
 let currentLat='';
 let currentLng='';
 let currentAcc='';
+let currentAddr='';        // 저장용 주소(도로명 → 없으면 지번, 조회 실패 시 빈 값)
+let currentCorrected=false; // 지도에서 위치를 보정했는지
+let currentDist=null;       // 직전 저장 지점과의 거리(m)
 const DEPTH_KEY='depth_records_v35';
+const BACKUP_COUNT_KEY='depth_backup_count';
+const BACKUP_TIME_KEY='depth_backup_time';
+const BACKUP_REMIND_EVERY=10; // 백업 안 된 기록이 이 건수 이상이면 알림
+
+function esc(v){
+  return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function todayPrefix(){
+  const d=new Date();
+  return `${d.getFullYear()}. ${String(d.getMonth()+1).padStart(2,'0')}. ${String(d.getDate()).padStart(2,'0')}.`;
+}
 
 function loadRecords(){
   return JSON.parse(localStorage.getItem(DEPTH_KEY)||'[]');
@@ -195,53 +218,74 @@ function saveRecords(arr){
 }
 function refreshStats(){
   const arr=loadRecords();
-  const nums=arr.map(x=>Number(x.depth)).filter(x=>!isNaN(x));
-  const ps=document.querySelectorAll('p');
+  // 오늘의 측정 현황: 오늘 날짜 기록만 집계, 없으면 0 / - 로 표시
+  const today=arr.filter(r=>String(r.time||'').startsWith(todayPrefix()));
+  const nums=today.map(x=>Number(x.depth)).filter(x=>!isNaN(x));
+  const st=(id,html)=>{const e=document.getElementById(id); if(e) e.innerHTML=html;};
+  st('statCount',`${nums.length} <span class="text-xs font-normal text-gray-500">건</span>`);
+  st('statTotal',`전체 ${arr.length}건`);
   if(nums.length){
-    const avg=(nums.reduce((a,b)=>a+b,0)/nums.length).toFixed(2);
-    const max=Math.max(...nums).toFixed(2);
-    const min=Math.min(...nums).toFixed(2);
-    ps.forEach(p=>{
-      if(p.textContent.includes('총 건수')) p.nextElementSibling.innerHTML=`${nums.length} <span class="text-xs">건</span>`;
-      if(p.textContent.includes('평균 심도')) p.nextElementSibling.innerHTML=`${avg}<span class="text-xs">m</span>`;
-      if(p.textContent.includes('최대/최소')) p.nextElementSibling.textContent=`${max} / ${min}`;
-    });
+    st('statAvg',`${(nums.reduce((a,b)=>a+b,0)/nums.length).toFixed(2)}<span class="text-xs font-normal text-blue-500">m</span>`);
+    st('statMaxMin',`${Math.max(...nums).toFixed(2)} / ${Math.min(...nums).toFixed(2)}`);
+  }else{
+    st('statAvg','-');
+    st('statMaxMin','- / -');
   }
+
   const sec=[...document.querySelectorAll('section')].find(s=>s.textContent.includes('최근 저장 이력'));
   if(sec){
     sec.querySelectorAll('.record-item').forEach(e=>e.remove());
-    arr.slice().reverse().forEach((r,i)=>{
+    const anchor=sec.querySelector('.grid');
+    for(let idx=arr.length-1; idx>=0; idx--){
+      const r=arr[idx];
+      const accN=Number(r.accuracy);
       const d=document.createElement('div');
       d.className='record-item bg-white p-3 rounded-xl shadow-sm border border-gray-200 mt-2';
+      d.dataset.idx=idx;
       d.innerHTML=`
 <div class="flex items-start gap-3">
-<input type="checkbox" class="w-5 h-5 mt-1">
-<div class="flex-1">
-  <div class="flex items-center gap-2 mb-1">
-    <span class="text-xs bg-gray-100 text-gray-700 font-bold px-2 py-1 rounded">No.${arr.length-i}</span>
-    <span class="text-xs text-gray-500">${r.time}</span>
-    ${r.accuracy?`<span class="text-xs font-semibold" style="color:${Number(r.accuracy)<=3?'#16a34a':Number(r.accuracy)<=5?'#2563eb':'#ca8a04'}">±${r.accuracy}m</span>`:''}
+<input type="checkbox" class="w-5 h-5 mt-1" data-idx="${idx}">
+<div class="flex-1 min-w-0">
+  <div class="flex items-center gap-1.5 mb-1 flex-wrap">
+    <span class="text-xs bg-gray-100 text-gray-700 font-bold px-2 py-1 rounded">No.${idx+1}</span>
+    <span class="text-xs text-gray-500">${esc(r.time)}</span>
+    ${r.accuracy?`<span class="text-xs font-semibold" style="color:${accN<=3?'#16a34a':accN<=5?'#2563eb':'#ca8a04'}">±${esc(r.accuracy)}m</span>`:''}
+    ${r.corrected?'<span class="text-xs font-semibold text-purple-600">지도보정</span>':''}
+    ${r.dist!=null&&r.dist!==''?`<span class="text-xs text-gray-500">↔ ${esc(r.dist)}m</span>`:''}
   </div>
-  <div class="text-sm font-medium text-gray-800">${r.manageNo ? '['+r.manageNo+'] ' : ''}${r.address||'주소 없음'}</div>
+  <div class="text-sm font-medium text-gray-800 break-all">${r.manageNo?'['+esc(r.manageNo)+'] ':''}${esc(r.address)||'주소 없음'}</div>
 </div>
 <div class="text-right whitespace-nowrap">
   <span class="text-3xl font-black text-gray-900">${Number(r.depth).toFixed(2)}</span><span class="text-base font-bold"> m</span>
+  <div class="text-[11px] text-blue-500 mt-0.5"><i class="fa-solid fa-pen"></i> 수정</div>
 </div>
 </div>`;
-      sec.insertBefore(d,sec.querySelector('.grid'));
+      sec.insertBefore(d,anchor);
+    }
     const lastSaved=document.getElementById('lastSavedTime');
     if(lastSaved){
-      if(arr.length){
-        const dateOnly=arr[arr.length-1].time.split('오전')[0].split('오후')[0].trim();
-        lastSaved.textContent='최근 저장 : '+dateOnly;
-      }else{
-        lastSaved.textContent='';
-      }
+      lastSaved.textContent=arr.length?'최근 저장 : '+String(arr[arr.length-1].time).split('오전')[0].split('오후')[0].trim():'';
     }
+  }
+  updateBackupReminder();
+}
 
-    });
+// 백업 안 된 기록이 쌓이면 알림 배너 표시
+function updateBackupReminder(){
+  const box=document.getElementById('backupReminder');
+  if(!box) return;
+  const total=loadRecords().length;
+  const backed=Number(localStorage.getItem(BACKUP_COUNT_KEY)||0);
+  const pending=total-Math.min(backed,total);
+  if(pending>=BACKUP_REMIND_EVERY){
+    const t=localStorage.getItem(BACKUP_TIME_KEY);
+    box.querySelector('[data-msg]').textContent=`백업 안 된 기록 ${pending}건${t?' · 마지막 백업 '+t:''}`;
+    box.style.display='flex';
+  }else{
+    box.style.display='none';
   }
 }
+
 document.addEventListener('DOMContentLoaded',()=>{
 
  const btn=[...document.querySelectorAll('button')].find(b=>b.textContent.includes('심도 데이터 저장'));
@@ -259,7 +303,7 @@ document.addEventListener('DOMContentLoaded',()=>{
        showToast('먼저 GPS 위치를 측정해주세요.','error');
        return;
      }
-     if(gpsLimit() && Number(currentAcc)>gpsLimit()){
+     if(!currentCorrected && gpsLimit() && Number(currentAcc)>gpsLimit()){
        showToast(`정확도(±${currentAcc}m)가 기준(${gpsLimit()}m)을 넘습니다. 재측정해주세요.`,'error');
        return;
      }
@@ -278,10 +322,10 @@ document.addEventListener('DOMContentLoaded',()=>{
 
      btn.disabled=true;
      const arr=loadRecords();
-     const addr=(document.getElementById('roadAddr')?.textContent||document.getElementById('jibunAddr')?.textContent||'');
+     const addr=currentAddr; // 도로명 → 없으면 지번 (안내 문구는 저장하지 않음)
      const now=new Date();
      const time=`${now.getFullYear()}. ${String(now.getMonth()+1).padStart(2,'0')}. ${String(now.getDate()).padStart(2,'0')}. ${now.getHours()<12?'오전':'오후'} ${String((now.getHours()%12)||12).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-     arr.push({manageNo,depth:v,time:time,address:addr,latitude:currentLat,longitude:currentLng,accuracy:currentAcc,samples:currentSamples});
+     arr.push({manageNo,depth:v,time:time,address:addr,latitude:currentLat,longitude:currentLng,accuracy:currentAcc,samples:currentSamples,dist:currentDist,corrected:currentCorrected});
      saveRecords(arr);
      refreshStats();
      showToast('저장되었습니다.','success');
@@ -335,12 +379,8 @@ document.addEventListener('DOMContentLoaded',()=>{
     const checkedCount=checks.filter(c=>c.checked).length;
     if(checkedCount===0){ showToast('선택된 항목이 없습니다.','warn'); return; }
     if(!confirm(`선택한 ${checkedCount}건을 삭제하시겠습니까?`)) return;
-    const rev=arr.slice().reverse();
-    const kept=[];
-    rev.forEach((r,i)=>{
-      if(!(checks[i] && checks[i].checked)) kept.push(r);
-    });
-    saveRecords(kept.reverse());
+    const del=new Set(checks.filter(c=>c.checked).map(c=>Number(c.dataset.idx)));
+    saveRecords(arr.filter((r,i)=>!del.has(i)));
     redraw();
     showToast('선택한 항목을 삭제했습니다.','success');
   });
@@ -362,8 +402,15 @@ document.addEventListener('DOMContentLoaded',()=>{
  excelBtn.addEventListener('click',()=>{
    const data=loadRecords();
    if(!data.length){showToast('내보낼 데이터가 없습니다.','warn');return;}
-   const rows=data.map((r,i)=>({번호:i+1,관리번호:r.manageNo||'',주소:r.address||'',심도_m:r.depth,측정시간:r.time,위도:r.latitude||'',경도:r.longitude||'',GPS정확도_m:r.accuracy||'',GPS샘플수:r.samples||''}));
+   const num=v=>{const n=parseFloat(v); return isNaN(n)?'':n;};
+   const rows=data.map((r,i)=>({번호:i+1,관리번호:r.manageNo||'',주소:r.address||'',심도_m:num(r.depth),측정시간:r.time,
+     위도:num(r.latitude),경도:num(r.longitude),GPS정확도_m:num(r.accuracy),GPS샘플수:num(r.samples),
+     직전거리_m:num(r.dist),위치보정:r.corrected?'지도보정':''}));
    const ws=XLSX.utils.json_to_sheet(rows);
+   // 위도·경도는 소수점 7자리까지 보이도록 표시 형식 지정
+   const range=XLSX.utils.decode_range(ws['!ref']);
+   for(let R=1;R<=range.e.r;R++){ [5,6].forEach(C=>{const c=ws[XLSX.utils.encode_cell({r:R,c:C})]; if(c&&c.t==='n') c.z='0.0000000';}); }
+   ws['!cols']=[{wch:5},{wch:14},{wch:32},{wch:7},{wch:24},{wch:12},{wch:13},{wch:10},{wch:9},{wch:9},{wch:8}];
    const wb=XLSX.utils.book_new();
    XLSX.utils.book_append_sheet(wb,ws,'심도측정');
    const manageNo = data[0]?.manageNo || '심도측정';
@@ -383,7 +430,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 
  backupBtn.onclick=()=>{
    const data={
-     version:'V0.0',
+     version:'V0.1',
      user:localStorage.getItem('depth_user_name')||'',
      records:JSON.parse(localStorage.getItem('depth_records_v35')||'[]')
    };
@@ -394,7 +441,10 @@ document.addEventListener('DOMContentLoaded',()=>{
    const f=`심도측정_백업_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}_${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}${String(d.getSeconds()).padStart(2,'0')}.json`;
    a.download=f;
    a.click();
-   URL.revokeObjectURL(a.href);
+   setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+   localStorage.setItem(BACKUP_COUNT_KEY,String(data.records.length));
+   localStorage.setItem(BACKUP_TIME_KEY,`${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`);
+   updateBackupReminder();
  };
 
  const input=document.createElement('input');
@@ -430,6 +480,7 @@ document.addEventListener('DOMContentLoaded',()=>{
        if(!confirm(confirmMsg)) return;
 
        localStorage.setItem('depth_records_v35',JSON.stringify(validRecords));
+       localStorage.setItem(BACKUP_COUNT_KEY,String(validRecords.length)); // 복원한 기록은 이미 백업 파일에 있음
        if(obj.user) localStorage.setItem('depth_user_name',obj.user);
        showToast('복원이 완료되었습니다. 화면을 새로고침합니다.','success');
        setTimeout(()=>location.reload(),600);
@@ -540,6 +591,7 @@ async function reverseGeocode(lat,lng){
  gps.textContent=`${lat.toFixed(6)}, ${lng.toFixed(6)}`;
  road.textContent='주소 조회 중...';
  jibun.textContent='주소 조회 중...';
+ currentAddr='';
 
  try{
    const controller=new AbortController();
@@ -578,6 +630,7 @@ async function reverseGeocode(lat,lng){
       // 도로명 주소가 없는 지점(도로명 미부여 구역 등)과 지번 주소를 명확히 구분
       road.textContent = doc.road_address?.address_name || '도로명 없음 (미부여 지역)';
       jibun.textContent = doc.address?.address_name || '지번 주소 없음';
+      currentAddr = doc.road_address?.address_name || doc.address?.address_name || '';
    }else{
       // API 응답은 정상이지만 좌표에 매칭되는 주소가 실제로 없는 경우(바다, 행정구역 밖 등)
       road.textContent='해당 좌표에 등록된 주소 없음';
@@ -599,7 +652,7 @@ async function reverseGeocode(lat,lng){
 
 <script>
 /*
- * GPS 정밀 측위 로직 (V0.0)
+ * GPS 정밀 측위 로직 (V0.1)
  * 1) 예열: 앱이 열려 있는 동안 GPS를 계속 수신해 최근 샘플을 버퍼에 보관
  *    → 측정 버튼을 누르면 이미 쌓인 샘플을 활용해 보통 1~3초 안에 확정
  * 2) 평균: 이동 중 샘플·튐값 제거 후 정확도 가중평균
@@ -661,17 +714,35 @@ function setSaveEnabled(on,label,bg){
 }
 
 // 확정된 측정 결과 표시 + 기준 판정
+function distText(){
+ return currentDist!=null?` · 직전 지점과 <b>${currentDist}m</b>`:'';
+}
+function calcDistFromLast(){
+ const arr=loadRecords();
+ const last=arr[arr.length-1];
+ if(last && last.latitude && last.longitude && currentLat){
+   currentDist=Math.round(gpsDistanceMeters(+last.latitude,+last.longitude,+currentLat,+currentLng)*10)/10;
+ }else currentDist=null;
+}
 function updateGpsStatus(){
  const s=document.getElementById('gpsStatus');
+ const mapBtn=document.getElementById('mapFixBtn');
+ if(mapBtn) mapBtn.disabled=!currentLat;
  if(!s||!currentAcc) return;
  const lim=gpsLimit();
  const acc=Number(currentAcc);
+ if(currentCorrected){
+   s.innerHTML=`지도에서 위치 보정됨${distText()}`;
+   s.style.color='#7c3aed';
+   setSaveEnabled(true);
+   return;
+ }
  if(lim && acc>lim){
-   s.innerHTML=`정확도 미달 ±${acc}m (기준 ${lim}m) — 위치 버튼을 눌러 재측정하세요`;
+   s.innerHTML=`정확도 미달 ±${acc}m (기준 ${lim}m) — 재측정하거나 지도에서 보정하세요`;
    s.style.color='#dc2626';
    setSaveEnabled(false,'<i class="fa-solid fa-ban text-lg"></i> 정확도 미달 · 재측정 필요');
  }else{
-   s.innerHTML=`측정 완료 ±${acc}m <span style="font-weight:500;color:#64748b">(샘플 ${currentSamples}개)</span>`;
+   s.innerHTML=`측정 완료 ±${acc}m <span style="font-weight:500;color:#64748b">(샘플 ${currentSamples}개)</span>${distText()}`;
    s.style.color=accColor(acc);
    setSaveEnabled(true);
  }
@@ -787,6 +858,8 @@ async function finalizeGps(){
  currentLng=r.lng.toFixed(7);
  currentAcc=r.accuracy;
  currentSamples=r.count;
+ currentCorrected=false;
+ calcDistFromLast();
  updateGpsStatus();
  await reverseGeocode(r.lat,r.lng);
  document.getElementById('gpsCoord').textContent=`${r.lat.toFixed(7)}, ${r.lng.toFixed(7)}`;
@@ -794,8 +867,9 @@ async function finalizeGps(){
 function startGpsCollection(){
  if(!navigator.geolocation){ showToast('이 기기는 GPS 기능을 지원하지 않습니다.','error'); return; }
  startLiveGps();
- currentAcc=''; currentLat=''; currentLng=''; currentSamples=0;
- gpsMeasuring=true;
+ currentAcc=''; currentLat=''; currentLng=''; currentSamples=0; currentCorrected=false; currentDist=null; currentAddr='';
+ const mb=document.getElementById('mapFixBtn'); if(mb) mb.disabled=true;
+ gpsMeasuring=true; fixBase=null;
  gpsMeasureStart=Date.now();
  setSaveEnabled(false,'<i class="fa-solid fa-satellite-dish text-lg"></i> GPS 측정 중...');
  clearTimeout(gpsMeasureTimer); clearInterval(gpsTickTimer);
@@ -806,7 +880,9 @@ function startGpsCollection(){
 
 // 저장 후 호출: 다음 지점에서 이전 좌표가 쓰이지 않도록 초기화
 function resetGpsFix(){
- currentAcc=''; currentLat=''; currentLng=''; currentSamples=0;
+ fixBase=null;
+ currentAcc=''; currentLat=''; currentLng=''; currentSamples=0; currentCorrected=false; currentDist=null; currentAddr='';
+ const mb=document.getElementById('mapFixBtn'); if(mb) mb.disabled=true;
  setSaveEnabled(false,'<i class="fa-solid fa-location-crosshairs text-lg"></i> 다음 지점 GPS 측정 필요');
  const s=document.getElementById('gpsStatus');
  if(s){ s.textContent='다음 지점으로 이동 후 위치 버튼을 누르세요'; s.style.color='#64748b'; }
@@ -847,6 +923,180 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 </script>
 
+
+<!-- 기록 수정 창 -->
+<div id="editModal" style="display:none" class="fixed inset-0 z-[10000] bg-black/40 items-end justify-center">
+  <div class="bg-white w-full max-w-md rounded-t-2xl p-5 space-y-3 shadow-xl">
+    <div class="flex justify-between items-center">
+      <h3 class="font-bold text-gray-800"><i class="fa-solid fa-pen text-blue-500 mr-1"></i> 기록 수정 <span id="editNo" class="text-sm text-gray-400"></span></h3>
+      <button type="button" data-close class="text-gray-400 text-xl px-2">✕</button>
+    </div>
+    <div id="editInfo" class="text-xs text-gray-500"></div>
+    <label class="block text-xs font-bold text-gray-500">관리번호
+      <input id="editManage" type="text" class="mt-1 w-full bg-gray-50 border-2 border-gray-200 rounded-xl py-2.5 px-3 text-base font-bold text-gray-800 focus:outline-none focus:border-blue-500">
+    </label>
+    <label class="block text-xs font-bold text-gray-500">심도 (m)
+      <input id="editDepth" type="number" step="0.01" inputmode="decimal" class="mt-1 w-full bg-gray-50 border-2 border-gray-200 rounded-xl py-2.5 px-3 text-2xl font-bold text-gray-800 text-right focus:outline-none focus:border-blue-500">
+    </label>
+    <div class="grid grid-cols-3 gap-2 pt-1">
+      <button type="button" id="editDelete" class="py-3 rounded-xl border border-red-200 text-red-500 font-bold text-sm">삭제</button>
+      <button type="button" id="editSave" class="col-span-2 py-3 rounded-xl bg-blue-600 text-white font-bold">수정 저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 지도 위치 보정 창 -->
+<div id="mapModal" style="display:none" class="fixed inset-0 z-[10001] bg-white flex-col">
+  <div class="flex items-center justify-between px-4 py-3 border-b bg-white">
+    <h3 class="font-bold text-gray-800"><i class="fa-solid fa-map-location-dot text-purple-600 mr-1"></i> 지도에서 위치 보정</h3>
+    <div class="flex gap-1 text-xs font-semibold">
+      <button type="button" data-layer="sat" class="px-2.5 py-1 rounded-full bg-gray-800 text-white">위성</button>
+      <button type="button" data-layer="map" class="px-2.5 py-1 rounded-full bg-gray-100 text-gray-700">일반</button>
+    </div>
+  </div>
+  <div class="relative flex-1">
+    <div id="fixMap" class="absolute inset-0 bg-gray-200"></div>
+    <!-- 화면 중앙 십자선 = 보정 위치 -->
+    <div class="pointer-events-none absolute inset-0 flex items-center justify-center z-[500]">
+      <svg width="44" height="44" viewBox="0 0 44 44"><circle cx="22" cy="22" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5"/><path d="M22 0v14M22 30v14M0 22h14M30 22h14" stroke="#7c3aed" stroke-width="2.5"/><circle cx="22" cy="22" r="1.8" fill="#7c3aed"/></svg>
+    </div>
+    <div id="mapHint" class="absolute top-2 left-2 right-2 z-[500] bg-white/90 rounded-lg px-3 py-2 text-xs text-gray-700 shadow text-center">
+      지도를 움직여 <b class="text-purple-700">십자선</b>을 맨홀·관로 위치에 맞추세요
+    </div>
+  </div>
+  <div class="p-3 border-t bg-white space-y-2" style="padding-bottom:calc(env(safe-area-inset-bottom) + 12px)">
+    <div id="mapMoveInfo" class="text-center text-sm font-semibold text-gray-600">측정 위치에서 0.0m</div>
+    <div class="grid grid-cols-3 gap-2">
+      <button type="button" id="mapCancel" class="py-3 rounded-xl border border-gray-300 text-gray-600 font-bold">취소</button>
+      <button type="button" id="mapConfirm" class="col-span-2 py-3 rounded-xl bg-purple-600 text-white font-bold">이 위치로 확정</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── 기록 수정 ── */
+document.addEventListener('DOMContentLoaded',()=>{
+  const modal=document.getElementById('editModal');
+  const mDepth=document.getElementById('editDepth'), mManage=document.getElementById('editManage');
+  let editIdx=-1;
+  const close=()=>{ modal.style.display='none'; editIdx=-1; };
+  function open(idx){
+    const r=loadRecords()[idx]; if(!r) return;
+    editIdx=idx;
+    document.getElementById('editNo').textContent=`No.${idx+1}`;
+    document.getElementById('editInfo').textContent=`${r.time||''} · ${r.address||'주소 없음'}`;
+    mManage.value=r.manageNo||'';
+    mDepth.value=r.depth;
+    modal.style.display='flex';
+  }
+  document.addEventListener('click',e=>{
+    const card=e.target.closest&&e.target.closest('.record-item');
+    if(!card || e.target.matches('input[type=checkbox]')) return;
+    open(Number(card.dataset.idx));
+  });
+  modal.addEventListener('click',e=>{ if(e.target===modal||e.target.closest('[data-close]')) close(); });
+  document.getElementById('editSave').onclick=()=>{
+    const v=parseFloat(mDepth.value);
+    if(isNaN(v)||v<0){ showToast('심도를 올바르게 입력하세요.','error'); return; }
+    if(v>50 && !confirm(`입력하신 심도(${v}m)가 비정상적으로 큰 값입니다. 계속 저장하시겠습니까?`)) return;
+    const arr=loadRecords(); if(!arr[editIdx]) return close();
+    arr[editIdx].depth=v;
+    arr[editIdx].manageNo=mManage.value.trim();
+    arr[editIdx].edited=true;
+    saveRecords(arr); close(); refreshStats();
+    showToast('수정되었습니다.','success');
+  };
+  document.getElementById('editDelete').onclick=()=>{
+    if(!confirm(`No.${editIdx+1} 기록을 삭제하시겠습니까?`)) return;
+    const arr=loadRecords(); arr.splice(editIdx,1); saveRecords(arr); close(); refreshStats();
+    showToast('삭제되었습니다.','success');
+  };
+
+  /* ── 백업 알림의 '지금 백업' ── */
+  const nowBtn=document.getElementById('backupNowBtn');
+  if(nowBtn) nowBtn.onclick=()=>{
+    const b=[...document.querySelectorAll('button')].find(x=>x.textContent.includes('데이터 백업'));
+    if(b) b.click();
+  };
+  updateBackupReminder();
+});
+
+/* ── 지도에서 위치 보정 (Leaflet + 위성지도, 별도 키 불필요) ── */
+let fixMap=null, fixLayers=null, fixBase=null;
+function loadLeaflet(){
+  if(window.L) return Promise.resolve();
+  return new Promise((ok,fail)=>{
+    const css=document.createElement('link'); css.rel='stylesheet';
+    css.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+    document.head.appendChild(css);
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+    s.onload=ok; s.onerror=fail; document.head.appendChild(s);
+  });
+}
+function setFixLayer(name){
+  if(!fixMap) return;
+  Object.values(fixLayers).forEach(l=>fixMap.removeLayer(l));
+  fixLayers[name].addTo(fixMap);
+  document.querySelectorAll('#mapModal [data-layer]').forEach(b=>{
+    const on=b.dataset.layer===name;
+    b.className='px-2.5 py-1 rounded-full '+(on?'bg-gray-800 text-white':'bg-gray-100 text-gray-700');
+  });
+}
+async function openMapFix(){
+  if(!currentLat){ showToast('먼저 GPS 위치를 측정해주세요.','warn'); return; }
+  const modal=document.getElementById('mapModal');
+  try{ await loadLeaflet(); }catch(e){ showToast('지도를 불러올 수 없습니다. 인터넷 연결을 확인하세요.','error'); return; }
+  modal.style.display='flex';
+  const base=fixBase||{lat:+currentLat,lng:+currentLng,acc:Number(currentAcc)||5};
+  fixBase=base;
+  if(!fixMap){
+    fixMap=L.map('fixMap',{zoomControl:true,attributionControl:true,maxZoom:21});
+    fixLayers={
+      sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:19,maxZoom:21,attribution:'Esri'}),
+      map:L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxNativeZoom:19,maxZoom:21,attribution:'© OpenStreetMap'})
+    };
+    fixMap.on('move',updateMapMoveInfo);
+    document.querySelectorAll('#mapModal [data-layer]').forEach(b=>b.onclick=()=>setFixLayer(b.dataset.layer));
+  }
+  setFixLayer('sat');
+  if(fixMap._fixOverlay) fixMap.removeLayer(fixMap._fixOverlay);
+  const g=L.layerGroup();
+  // 이전 저장 지점(번호 표시)
+  loadRecords().forEach((r,i)=>{
+    if(!r.latitude) return;
+    L.circleMarker([+r.latitude,+r.longitude],{radius:5,color:'#fff',weight:1.5,fillColor:'#ef4444',fillOpacity:1})
+      .bindTooltip(String(i+1),{permanent:true,direction:'top',offset:[0,-4],className:'text-[10px]'}).addTo(g);
+  });
+  // GPS 측정 위치와 오차 범위
+  L.circle([base.lat,base.lng],{radius:base.acc,color:'#2563eb',weight:1,fillOpacity:0.12}).addTo(g);
+  L.circleMarker([base.lat,base.lng],{radius:6,color:'#fff',weight:2,fillColor:'#2563eb',fillOpacity:1}).addTo(g);
+  g.addTo(fixMap); fixMap._fixOverlay=g;
+  setTimeout(()=>{ fixMap.invalidateSize(); fixMap.setView([+currentLat,+currentLng],20,{animate:false}); updateMapMoveInfo(); },50);
+}
+function updateMapMoveInfo(){
+  if(!fixMap||!fixBase) return;
+  const c=fixMap.getCenter();
+  const d=gpsDistanceMeters(fixBase.lat,fixBase.lng,c.lat,c.lng);
+  document.getElementById('mapMoveInfo').textContent=`GPS 측정 위치에서 ${d.toFixed(1)}m`;
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  const btn=document.getElementById('mapFixBtn');
+  if(btn) btn.addEventListener('click',openMapFix);
+  document.getElementById('mapCancel').onclick=()=>{ document.getElementById('mapModal').style.display='none'; };
+  document.getElementById('mapConfirm').onclick=async()=>{
+    const c=fixMap.getCenter();
+    document.getElementById('mapModal').style.display='none';
+    currentLat=c.lat.toFixed(7); currentLng=c.lng.toFixed(7);
+    currentCorrected=true;
+    calcDistFromLast();
+    updateGpsStatus();
+    await reverseGeocode(c.lat,c.lng);
+    document.getElementById('gpsCoord').textContent=`${currentLat}, ${currentLng} (보정)`;
+    showToast('보정한 위치로 확정했습니다.','success');
+  };
+});
+</script>
 
 <script>
 if('serviceWorker' in navigator){

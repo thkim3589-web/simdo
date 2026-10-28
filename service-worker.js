@@ -2,7 +2,7 @@
 // - 앱 셸(정적 파일)을 캐싱해 오프라인에서도 화면이 열리도록 함
 // - 카카오 주소 API 등 외부 네트워크 요청은 캐싱하지 않고 그대로 통과시킴
 
-const CACHE_NAME = 'depth-app-cache-v1-0';
+const CACHE_NAME = 'depth-app-cache-v0-0';
 const APP_SHELL = [
   './',
   './index.html',

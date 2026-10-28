@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>심도측정 시스템 V0.3 (Kakao)</title>
+    <title>심도측정 시스템 V0.4 (Kakao)</title>
     <!-- Tailwind CSS CDN 및 FontAwesome 아이콘 적용 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -26,7 +26,7 @@
     <!-- 1. 상단 고정 헤더 -->
     <header class="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center shadow-sm">
         <h1 class="text-lg font-bold text-blue-600 flex items-center gap-2">
-            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V0.3</span>
+            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V0.4</span>
         </h1>
         <div class="flex items-center gap-2">
             <div class="flex items-center gap-1.5 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium text-gray-700">
@@ -191,9 +191,17 @@
               <option value="0">제한 없음</option>
             </select>
           </div>
-          <div class="flex items-center justify-between px-4 py-3 gap-3">
-            <div><div class="text-sm font-semibold text-gray-800">측위 방식</div><div id="settingsGpsSource" class="text-xs text-gray-500">-</div></div>
-            <button type="button" id="openLocSettingsBtn" style="display:none" class="text-sm font-semibold text-blue-600 border border-blue-200 rounded-lg px-3 py-1.5">휴대폰 위치 설정</button>
+          <div class="px-4 py-3 space-y-2">
+            <div class="flex items-center justify-between gap-3">
+              <div><div class="text-sm font-semibold text-gray-800">측위 방식</div><div id="settingsGpsSource" class="text-xs text-gray-500">-</div></div>
+              <select id="gpsSrcSel" class="border border-gray-300 rounded-lg px-2 py-1.5 bg-white text-gray-700 text-sm font-semibold">
+                <option value="auto">자동 (GPS칩 우선)</option>
+                <option value="chip">GPS칩 전용</option>
+                <option value="web">혼합 측위</option>
+              </select>
+            </div>
+            <div id="gpsSrcHelp" class="text-[11px] text-gray-500 leading-relaxed bg-gray-50 rounded-lg px-3 py-2"></div>
+            <button type="button" id="openLocSettingsBtn" style="display:none" class="w-full text-sm font-semibold text-blue-600 border border-blue-200 rounded-lg px-3 py-2">휴대폰 위치 설정 열기</button>
           </div>
         </section>
 
@@ -221,7 +229,7 @@
 
         <section class="bg-white rounded-xl border border-gray-200/80 shadow-sm divide-y divide-gray-100">
           <h3 class="px-4 pt-3 pb-2 text-xs font-bold text-gray-400 tracking-wider">앱 정보</h3>
-          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V0.3</span></div>
+          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V0.4</span></div>
           <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">저장된 기록</span><span class="font-semibold text-gray-800" id="settingsRecordCount">0건</span></div>
         </section>
 
@@ -491,7 +499,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 
  backupBtn.onclick=()=>{
    const data={
-     version:'V0.3',
+     version:'V0.4',
      user:localStorage.getItem('depth_user_name')||'',
      records:JSON.parse(localStorage.getItem('depth_records_v35')||'[]')
    };
@@ -713,7 +721,7 @@ async function reverseGeocode(lat,lng){
 
 <script>
 /*
- * GPS 정밀 측위 로직 (V0.3)
+ * GPS 정밀 측위 로직 (V0.4)
  * 1) 예열: 앱이 열려 있는 동안 GPS를 계속 수신해 최근 샘플을 버퍼에 보관
  *    → 측정 버튼을 누르면 이미 쌓인 샘플을 활용해 보통 1~3초 안에 확정
  * 2) 평균: 이동 중 샘플·튐값 제거 후 정확도 가중평균
@@ -872,7 +880,21 @@ function onGpsSample(lat,lng,acc,speed){
 }
 window.__nativeGps=p=>{ if(gpsSource==='chip') onGpsSample(p.lat,p.lng,p.acc,p.speed); };
 window.__gnssStatus=g=>{ gnss=g; renderGnssInfo(); };
-window.__nativeGpsReady=()=>{ if(gpsSource!=='chip'){ stopLiveGps(); startLiveGps(); } };
+window.__nativeGpsReady=()=>{ if(gpsSrcMode()!=='web' && gpsSource!=='chip'){ stopLiveGps(); startLiveGps(); } };
+
+// 측위 방식 설정: auto(GPS칩 우선) / chip(GPS칩 전용) / web(혼합 측위)
+const GPS_SRC_KEY='GPS_SRC_MODE';
+function gpsSrcMode(){ return localStorage.getItem(GPS_SRC_KEY)||'auto'; }
+function setGpsSrcMode(m){
+ localStorage.setItem(GPS_SRC_KEY,m);
+ // 방식이 바뀌면 이전 방식으로 받은 값은 버리고 새로 수신
+ stopLiveGps(); gpsBuffer=[];
+ if(gpsMeasuring) endMeasure(false);
+ currentAcc=''; currentLat=''; currentLng=''; currentSamples=0;
+ setSaveEnabled(false,'<i class="fa-solid fa-location-crosshairs text-lg"></i> GPS 측정 필요');
+ const st=document.getElementById('gpsStatus'); if(st){ st.textContent='측위 방식 변경됨 · 위치 버튼을 눌러 다시 측정하세요'; st.style.color='#64748b'; }
+ startLiveGps();
+}
 
 function renderGnssInfo(){
  const box=document.getElementById('gnssInfo'); if(!box) return;
@@ -896,7 +918,15 @@ function renderGnssInfo(){
 
 function startLiveGps(){
  if(gpsLiveId!==null||gpsSource==='chip') return;
- if(hasNative()){
+ const mode=gpsSrcMode();
+ if(mode==='chip' && !hasNative()){
+   gpsSource=''; renderGnssInfo();
+   const box=document.getElementById('gnssInfo');
+   if(box) box.innerHTML='<span class="px-2 py-0.5 rounded-full" style="background:#dc26261a;color:#dc2626">GPS칩 전용은 APK에서만 가능</span>';
+   const st=document.getElementById('gpsStatus'); if(st){ st.textContent='설정에서 측위 방식을 바꾸거나 APK 앱을 사용하세요'; st.style.color='#dc2626'; }
+   return;
+ }
+ if(hasNative() && mode!=='web'){
    const r=SimdoAndroid.startGps();
    if(r==='ok'||r==='gpsoff'){
      gpsSource='chip'; renderGnssInfo();
@@ -1223,7 +1253,20 @@ function refreshSettingsInfo(){
   const backed=Math.min(Number(localStorage.getItem(BACKUP_COUNT_KEY)||0),arr.length);
   set('settingsBackupInfo', t?`마지막 백업 ${t} · 백업 안 된 기록 ${arr.length-backed}건 · 저장 위치: 다운로드/심도측정`:'아직 백업한 적이 없습니다 · 저장 위치: 다운로드/심도측정');
   const src=(typeof gpsSource!=='undefined')?gpsSource:'';
-  set('settingsGpsSource', src==='chip'?`GPS 칩 직접 사용 · 위성 ${gnss.used}개 사용 중`:src==='web'?'웹 위치 (GPS·Wi-Fi·기지국 혼합)':'수신 대기');
+  set('settingsGpsSource', src==='chip'?`현재: GPS칩 · 위성 ${gnss.used}개 사용 중`:src==='web'?'현재: 혼합 측위 (GPS·Wi-Fi·기지국)':'현재: 수신 대기');
+  const sel=document.getElementById('gpsSrcSel');
+  if(sel){
+    sel.value=gpsSrcMode();
+    const native=!!(window.SimdoAndroid&&SimdoAndroid.startGps);
+    sel.querySelector('option[value=chip]').disabled=!native;
+    sel.querySelector('option[value=auto]').textContent=native?'자동 (GPS칩 우선)':'자동';
+  }
+  const help={
+    auto:'APK에서는 GPS칩을 쓰고, 브라우저이거나 권한이 없으면 혼합 측위를 씁니다. 대부분 이 설정을 권장합니다.',
+    chip:'GPS 위성 신호만 사용합니다. 탁 트인 현장에서 가장 일관된 값을 얻을 수 있지만, 실내·건물 사이에서는 위치를 못 잡을 수 있습니다.',
+    web:'GPS에 Wi-Fi·기지국 위치를 섞어 씁니다. 실내나 건물이 많은 곳에서 위치를 빨리 잡지만, 값이 더 흔들릴 수 있습니다.'
+  };
+  set('gpsSrcHelp', help[gpsSrcMode()]+(window.SimdoAndroid&&SimdoAndroid.startGps?'':' (브라우저에서는 GPS칩 전용을 사용할 수 없습니다)'));
   const lb=document.getElementById('openLocSettingsBtn');
   if(lb) lb.style.display=(window.SimdoAndroid&&SimdoAndroid.openLocationSettings)?'':'none';
 }
@@ -1241,6 +1284,11 @@ document.addEventListener('DOMContentLoaded',()=>{
   rs.onchange=()=>{ localStorage.setItem(BACKUP_REMIND_KEY,rs.value); updateBackupReminder(); };
 
   document.getElementById('openLocSettingsBtn').onclick=()=>SimdoAndroid.openLocationSettings();
+  document.getElementById('gpsSrcSel').onchange=e=>{
+    setGpsSrcMode(e.target.value);
+    setTimeout(refreshSettingsInfo,300);
+    showToast('측위 방식을 변경했습니다. 위치를 다시 측정하세요.','info');
+  };
 
   // 백업·삭제 후 설정 화면 정보 갱신
   ['allDeleteBtn'].forEach(id=>document.getElementById(id).addEventListener('click',()=>setTimeout(refreshSettingsInfo,100)));

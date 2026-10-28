@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>심도측정 시스템 V0.2 (Kakao)</title>
+    <title>심도측정 시스템 V0.3 (Kakao)</title>
     <!-- Tailwind CSS CDN 및 FontAwesome 아이콘 적용 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -26,12 +26,16 @@
     <!-- 1. 상단 고정 헤더 -->
     <header class="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center shadow-sm">
         <h1 class="text-lg font-bold text-blue-600 flex items-center gap-2">
-            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V0.2</span>
+            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V0.3</span>
         </h1>
-        <div class="flex items-center gap-1.5 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium text-gray-700">
-            <i class="fa-solid fa-circle-user text-gray-500"></i>
-            <span id="userNameDisplay"></span>
-            <button type="button" id="changeUserBtn" class="ml-2 text-blue-600 text-xs border px-2 py-0.5 rounded">변경</button>
+        <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium text-gray-700">
+                <i class="fa-solid fa-circle-user text-gray-500"></i>
+                <span id="userNameDisplay"></span>
+            </div>
+            <button type="button" id="openSettingsBtn" aria-label="설정" class="w-9 h-9 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center active:bg-gray-200">
+                <i class="fa-solid fa-gear text-base"></i>
+            </button>
         </div>
     </header>
 
@@ -48,12 +52,9 @@
             <button type="button" class="w-full bg-blue-50 hover:bg-blue-100 text-blue-600 font-semibold py-3 px-4 rounded-lg text-sm transition-all flex items-center justify-between border border-blue-200 active:scale-[0.99]">
 <div class="flex items-center gap-2">
 <i class="fa-solid fa-location-crosshairs text-base animate-pulse"></i>
-<span>현재 위치(GPS) 자동 가져오기</span>
+<span>현재 위치 GPS 측정</span>
 </div>
-<div class="flex items-center gap-2">
-<span id="gpsModeText">OFF</span>
-<input type="checkbox" id="autoGpsMode" class="w-5 h-5">
-</div>
+<span id="gpsLimitBadge" class="text-xs font-semibold bg-white border border-blue-200 rounded-full px-2 py-0.5">기준 ±5m</span>
 </button>
 
             <!-- 주소 매핑 결과 창 -->
@@ -71,15 +72,6 @@
         
 <div id="gpsStatus" class="text-center text-sm font-bold text-gray-500 mt-2">GPS 신호 찾는 중...</div>
 <div id="gnssInfo" class="flex flex-wrap items-center justify-center gap-1.5 text-[11px] font-semibold"></div>
-<div class="flex items-center justify-center gap-2 text-xs text-gray-500">
-  <span>저장 허용 정확도</span>
-  <select id="gpsLimit" class="border border-gray-300 rounded-md px-2 py-1 bg-white text-gray-700 font-semibold">
-    <option value="3">±3m 이내</option>
-    <option value="5">±5m 이내</option>
-    <option value="10">±10m 이내</option>
-    <option value="0">제한 없음</option>
-  </select>
-</div>
 <button type="button" id="mapFixBtn" disabled class="w-full mt-1 py-2.5 rounded-lg text-sm font-semibold border border-purple-200 bg-purple-50 text-purple-700 disabled:opacity-40">
   <i class="fa-solid fa-map-location-dot mr-1"></i> 지도에서 위치 보정
 </button>
@@ -153,24 +145,89 @@
                 <button type="button" id="backupNowBtn" class="bg-amber-500 text-white font-bold px-3 py-1.5 rounded-md">지금 백업</button>
             </div>
             <!-- 리스트 제어 서브 버튼 -->
-            <div class="grid grid-cols-2 gap-2 pt-1">
-                <button class="py-2 px-3 border border-gray-300 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 active:bg-gray-100">
+            <div class="grid grid-cols-1 gap-2 pt-1">
+                <button type="button" id="selDeleteBtn" class="py-2 px-3 border border-gray-300 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 active:bg-gray-100">
                     <i class="fa-solid fa-trash-can mr-1"></i> 선택 삭제
-                </button>
-                <button class="py-2 px-3 border border-red-200 text-red-500 rounded-lg text-xs font-semibold hover:bg-red-50 active:bg-red-100">
-                    <i class="fa-solid fa-dumpster-fire mr-1"></i> 전체 삭제
                 </button>
             </div>
         </section>
 
         <!-- 6. 유틸리티 관리 영역 (백업/엑셀) -->
-        <section class="pt-2 pb-6 border-t border-gray-200/80 grid grid-cols-3 gap-2 text-center text-xs text-gray-500 font-medium">
-            <button class="hover:text-blue-600 py-1.5"><i class="fa-solid fa-floppy-disk mr-1"></i>데이터 백업</button>
-            <button class="hover:text-blue-600 py-1.5"><i class="fa-solid fa-file-arrow-up mr-1"></i>데이터 복원</button>
-            <button class="hover:text-green-600 py-1.5 font-semibold text-green-600"><i class="fa-solid fa-file-excel mr-1"></i>엑셀 내보내기</button>
+        <section class="pt-2 pb-6">
+            <button type="button" class="w-full py-3 rounded-xl border-2 border-green-500 text-green-600 font-bold text-sm bg-white active:bg-green-50"><i class="fa-solid fa-file-excel mr-1"></i>엑셀 내보내기</button>
         </section>
 
     </main>
+
+    <!-- 설정 창 -->
+    <div id="settingsModal" style="display:none" class="fixed inset-0 z-[10002] bg-gray-50 flex-col">
+      <div class="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 shadow-sm">
+        <button type="button" id="closeSettingsBtn" aria-label="닫기" class="w-9 h-9 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center"><i class="fa-solid fa-arrow-left"></i></button>
+        <h2 class="text-lg font-bold text-gray-800">설정</h2>
+      </div>
+      <div class="flex-1 overflow-y-auto">
+       <div class="max-w-md mx-auto p-4 space-y-4 pb-10">
+
+        <section class="bg-white rounded-xl border border-gray-200/80 shadow-sm divide-y divide-gray-100">
+          <h3 class="px-4 pt-3 pb-2 text-xs font-bold text-gray-400 tracking-wider">사용자</h3>
+          <div class="flex items-center justify-between px-4 py-3">
+            <div><div class="text-sm font-semibold text-gray-800">측정자 이름</div><div id="settingsUserName" class="text-xs text-gray-500"></div></div>
+            <button type="button" id="changeUserBtn" class="text-sm font-semibold text-blue-600 border border-blue-200 rounded-lg px-3 py-1.5">변경</button>
+          </div>
+        </section>
+
+        <section class="bg-white rounded-xl border border-gray-200/80 shadow-sm divide-y divide-gray-100">
+          <h3 class="px-4 pt-3 pb-2 text-xs font-bold text-gray-400 tracking-wider">GPS 측정</h3>
+          <label class="flex items-center justify-between px-4 py-3 gap-3">
+            <div><div class="text-sm font-semibold text-gray-800">앱 시작 시 자동 측정</div><div class="text-xs text-gray-500">앱을 열면 바로 위치 측정을 시작 <span id="gpsModeText" class="font-semibold">OFF</span></div></div>
+            <input type="checkbox" id="autoGpsMode" class="w-6 h-6 accent-blue-600">
+          </label>
+          <div class="flex items-center justify-between px-4 py-3 gap-3">
+            <div><div class="text-sm font-semibold text-gray-800">저장 허용 정확도</div><div class="text-xs text-gray-500">이 기준보다 나쁘면 저장 버튼이 잠김</div></div>
+            <select id="gpsLimit" class="border border-gray-300 rounded-lg px-2 py-1.5 bg-white text-gray-700 text-sm font-semibold">
+              <option value="3">±3m 이내</option>
+              <option value="5">±5m 이내</option>
+              <option value="10">±10m 이내</option>
+              <option value="0">제한 없음</option>
+            </select>
+          </div>
+          <div class="flex items-center justify-between px-4 py-3 gap-3">
+            <div><div class="text-sm font-semibold text-gray-800">측위 방식</div><div id="settingsGpsSource" class="text-xs text-gray-500">-</div></div>
+            <button type="button" id="openLocSettingsBtn" style="display:none" class="text-sm font-semibold text-blue-600 border border-blue-200 rounded-lg px-3 py-1.5">휴대폰 위치 설정</button>
+          </div>
+        </section>
+
+        <section class="bg-white rounded-xl border border-gray-200/80 shadow-sm divide-y divide-gray-100">
+          <h3 class="px-4 pt-3 pb-2 text-xs font-bold text-gray-400 tracking-wider">데이터 관리</h3>
+          <div class="grid grid-cols-2 gap-2 px-4 py-3">
+            <button type="button" class="py-3 rounded-xl bg-blue-600 text-white text-sm font-bold"><i class="fa-solid fa-floppy-disk mr-1"></i>데이터 백업</button>
+            <button type="button" class="py-3 rounded-xl border border-blue-200 text-blue-600 text-sm font-bold"><i class="fa-solid fa-file-arrow-up mr-1"></i>데이터 복원</button>
+            <div class="col-span-2 text-xs text-gray-500" id="settingsBackupInfo"></div>
+          </div>
+          <div class="flex items-center justify-between px-4 py-3 gap-3">
+            <div><div class="text-sm font-semibold text-gray-800">백업 알림</div><div class="text-xs text-gray-500">백업 안 된 기록이 이만큼 쌓이면 알림</div></div>
+            <select id="backupRemindSel" class="border border-gray-300 rounded-lg px-2 py-1.5 bg-white text-gray-700 text-sm font-semibold">
+              <option value="5">5건</option>
+              <option value="10">10건</option>
+              <option value="20">20건</option>
+              <option value="0">끄기</option>
+            </select>
+          </div>
+          <div class="px-4 py-3">
+            <button type="button" id="allDeleteBtn" class="w-full py-3 rounded-xl border border-red-200 text-red-500 text-sm font-bold"><i class="fa-solid fa-dumpster-fire mr-1"></i>전체 기록 삭제</button>
+            <p class="text-[11px] text-gray-400 mt-1.5 text-center">삭제 전에 데이터 백업을 권장합니다</p>
+          </div>
+        </section>
+
+        <section class="bg-white rounded-xl border border-gray-200/80 shadow-sm divide-y divide-gray-100">
+          <h3 class="px-4 pt-3 pb-2 text-xs font-bold text-gray-400 tracking-wider">앱 정보</h3>
+          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V0.3</span></div>
+          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">저장된 기록</span><span class="font-semibold text-gray-800" id="settingsRecordCount">0건</span></div>
+        </section>
+
+       </div>
+      </div>
+    </div>
 
     
 
@@ -201,7 +258,8 @@ let currentDist=null;       // 직전 저장 지점과의 거리(m)
 const DEPTH_KEY='depth_records_v35';
 const BACKUP_COUNT_KEY='depth_backup_count';
 const BACKUP_TIME_KEY='depth_backup_time';
-const BACKUP_REMIND_EVERY=10; // 백업 안 된 기록이 이 건수 이상이면 알림
+const BACKUP_REMIND_KEY='depth_backup_remind';
+function backupRemindEvery(){ const v=localStorage.getItem(BACKUP_REMIND_KEY); return v===null?10:Number(v); } // 0 = 끄기
 
 function esc(v){
   return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -278,7 +336,8 @@ function updateBackupReminder(){
   const total=loadRecords().length;
   const backed=Number(localStorage.getItem(BACKUP_COUNT_KEY)||0);
   const pending=total-Math.min(backed,total);
-  if(pending>=BACKUP_REMIND_EVERY){
+  const every=backupRemindEvery();
+  if(every>0 && pending>=every){
     const t=localStorage.getItem(BACKUP_TIME_KEY);
     box.querySelector('[data-msg]').textContent=`백업 안 된 기록 ${pending}건${t?' · 마지막 백업 '+t:''}`;
     box.style.display='flex';
@@ -351,6 +410,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   function load(){
     const n=localStorage.getItem(KEY)||'김태호';
     nameSpan.textContent=n;
+    const sn=document.getElementById('settingsUserName'); if(sn) sn.textContent=n;
   }
   load();
   btn.addEventListener('click',()=>{
@@ -367,9 +427,8 @@ document.addEventListener('DOMContentLoaded',()=>{
 document.addEventListener('DOMContentLoaded',()=>{
   const sec=[...document.querySelectorAll('section')].find(s=>s.textContent.includes('최근 저장 이력'));
   if(!sec) return;
-  const buttons=sec.querySelectorAll('.grid button');
-  if(buttons.length<2) return;
-  const selBtn=buttons[0], allBtn=buttons[1];
+  const selBtn=document.getElementById('selDeleteBtn'), allBtn=document.getElementById('allDeleteBtn');
+  if(!selBtn||!allBtn) return;
 
   function redraw(){ refreshStats(); }
 
@@ -415,10 +474,10 @@ document.addEventListener('DOMContentLoaded',()=>{
    ws['!cols']=[{wch:5},{wch:14},{wch:32},{wch:7},{wch:24},{wch:12},{wch:13},{wch:10},{wch:9},{wch:9},{wch:8},{wch:9},{wch:8}];
    const wb=XLSX.utils.book_new();
    XLSX.utils.book_append_sheet(wb,ws,'심도측정');
-   const manageNo = data[0]?.manageNo || '심도측정';
+   const manageNo = (data[0]?.manageNo||'').replace(/[\\/:*?"<>|]/g,'_');
     const now = new Date();
     const ymd = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
-    XLSX.writeFile(wb, `${manageNo}_심도측정_${ymd}.xlsx`);
+    XLSX.writeFile(wb, manageNo ? `${manageNo}_심도측정_${ymd}.xlsx` : `심도측정_${ymd}.xlsx`);
  });
 });
 </script>
@@ -432,7 +491,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 
  backupBtn.onclick=()=>{
    const data={
-     version:'V0.2',
+     version:'V0.3',
      user:localStorage.getItem('depth_user_name')||'',
      records:JSON.parse(localStorage.getItem('depth_records_v35')||'[]')
    };
@@ -654,7 +713,7 @@ async function reverseGeocode(lat,lng){
 
 <script>
 /*
- * GPS 정밀 측위 로직 (V0.2)
+ * GPS 정밀 측위 로직 (V0.3)
  * 1) 예열: 앱이 열려 있는 동안 GPS를 계속 수신해 최근 샘플을 버퍼에 보관
  *    → 측정 버튼을 누르면 이미 쌓인 샘플을 활용해 보통 1~3초 안에 확정
  * 2) 평균: 이동 중 샘플·튐값 제거 후 정확도 가중평균
@@ -694,10 +753,14 @@ function loadGpsMode(){
  const sel=document.getElementById('gpsLimit');
  if(sel){
    sel.value=String(gpsLimit());
-   sel.onchange=()=>{ localStorage.setItem(GPS_LIMIT_KEY,sel.value); updateGpsStatus(); };
+   sel.onchange=()=>{ localStorage.setItem(GPS_LIMIT_KEY,sel.value); updateLimitBadge(); updateGpsStatus(); };
  }
 }
 
+function updateLimitBadge(){
+ const b=document.getElementById('gpsLimitBadge');
+ if(b){ const l=gpsLimit(); b.textContent=l?`기준 ±${l}m`:'기준 없음'; }
+}
 function accColor(acc){
  const lim=gpsLimit();
  if(lim && acc>lim) return '#dc2626';
@@ -914,7 +977,7 @@ async function finalizeGps(){
  document.getElementById('gpsCoord').textContent=`${r.lat.toFixed(7)}, ${r.lng.toFixed(7)}`;
 }
 function startGpsCollection(){
- if(!navigator.geolocation){ showToast('이 기기는 GPS 기능을 지원하지 않습니다.','error'); return; }
+ if(!hasNative() && !navigator.geolocation){ showToast('이 기기는 GPS 기능을 지원하지 않습니다.','error'); return; }
  startLiveGps();
  keepAwake();
  currentAcc=''; currentLat=''; currentLng=''; currentSamples=0; currentCorrected=false; currentDist=null; currentAddr='';
@@ -941,6 +1004,7 @@ function resetGpsFix(){
 
 document.addEventListener('DOMContentLoaded',()=>{
  loadGpsMode();
+ updateLimitBadge();
  const gpsBtn=[...document.querySelectorAll('button')].find(b=>b.textContent.includes('현재 위치'));
  if(gpsBtn) gpsBtn.addEventListener('click',()=>startGpsCollection());
  const limitSel=document.getElementById('gpsLimit');
@@ -1146,6 +1210,41 @@ document.addEventListener('DOMContentLoaded',()=>{
     document.getElementById('gpsCoord').textContent=`${currentLat}, ${currentLng} (보정)`;
     showToast('보정한 위치로 확정했습니다.','success');
   };
+});
+</script>
+
+<script>
+/* ── 설정 창 ── */
+function refreshSettingsInfo(){
+  const arr=loadRecords();
+  const set=(id,t)=>{const e=document.getElementById(id); if(e) e.textContent=t;};
+  set('settingsRecordCount',`${arr.length}건`);
+  const t=localStorage.getItem(BACKUP_TIME_KEY);
+  const backed=Math.min(Number(localStorage.getItem(BACKUP_COUNT_KEY)||0),arr.length);
+  set('settingsBackupInfo', t?`마지막 백업 ${t} · 백업 안 된 기록 ${arr.length-backed}건 · 저장 위치: 다운로드/심도측정`:'아직 백업한 적이 없습니다 · 저장 위치: 다운로드/심도측정');
+  const src=(typeof gpsSource!=='undefined')?gpsSource:'';
+  set('settingsGpsSource', src==='chip'?`GPS 칩 직접 사용 · 위성 ${gnss.used}개 사용 중`:src==='web'?'웹 위치 (GPS·Wi-Fi·기지국 혼합)':'수신 대기');
+  const lb=document.getElementById('openLocSettingsBtn');
+  if(lb) lb.style.display=(window.SimdoAndroid&&SimdoAndroid.openLocationSettings)?'':'none';
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  const modal=document.getElementById('settingsModal');
+  const open=()=>{ refreshSettingsInfo(); modal.style.display='flex'; history.pushState({settings:1},''); };
+  const close=()=>{ modal.style.display='none'; };
+  document.getElementById('openSettingsBtn').onclick=open;
+  document.getElementById('closeSettingsBtn').onclick=()=>{ if(history.state&&history.state.settings) history.back(); else close(); };
+  // 휴대폰 뒤로가기로 설정 닫기
+  window.addEventListener('popstate',()=>{ if(modal.style.display!=='none') close(); });
+
+  const rs=document.getElementById('backupRemindSel');
+  rs.value=String(backupRemindEvery());
+  rs.onchange=()=>{ localStorage.setItem(BACKUP_REMIND_KEY,rs.value); updateBackupReminder(); };
+
+  document.getElementById('openLocSettingsBtn').onclick=()=>SimdoAndroid.openLocationSettings();
+
+  // 백업·삭제 후 설정 화면 정보 갱신
+  ['allDeleteBtn'].forEach(id=>document.getElementById(id).addEventListener('click',()=>setTimeout(refreshSettingsInfo,100)));
+  [...modal.querySelectorAll('button')].filter(b=>b.textContent.includes('데이터 백업')).forEach(b=>b.addEventListener('click',()=>setTimeout(refreshSettingsInfo,100)));
 });
 </script>
 

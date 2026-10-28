@@ -71,7 +71,7 @@
             </div>
         
 <div id="gpsStatus" class="text-center text-sm font-bold text-gray-500 mt-2">GPS 신호 찾는 중...</div>
-<div id="gnssInfo" class="flex flex-wrap items-center justify-center gap-1.5 text-[11px] font-semibold"></div>
+<div id="gnssInfo" class="flex flex-nowrap items-center justify-center gap-1 text-[11px] font-semibold whitespace-nowrap overflow-hidden"></div>
 <button type="button" id="mapFixBtn" disabled class="w-full mt-1 py-2.5 rounded-lg text-sm font-semibold border border-purple-200 bg-purple-50 text-purple-700 disabled:opacity-40">
   <i class="fa-solid fa-map-location-dot mr-1"></i> 지도에서 위치 보정
 </button>
@@ -876,21 +876,21 @@ window.__nativeGpsReady=()=>{ if(gpsSource!=='chip'){ stopLiveGps(); startLiveGp
 
 function renderGnssInfo(){
  const box=document.getElementById('gnssInfo'); if(!box) return;
- const chip=(t,c)=>`<span class="px-2 py-0.5 rounded-full" style="background:${c}1a;color:${c}">${t}</span>`;
+ const chip=(t,c)=>`<span class="px-2 py-0.5 rounded-full whitespace-nowrap shrink-0" style="background:${c}1a;color:${c}">${t}</span>`;
  if(gpsSource!=='chip'){
-   box.innerHTML=gpsSource==='web'?chip('웹 위치 (GPS·Wi-Fi·기지국 혼합)','#64748b'):'';
+   box.innerHTML=gpsSource==='web'?chip('웹 위치 · 혼합 측위','#64748b'):'';
    return;
  }
  if(!gnss.gpsOn){
-   box.innerHTML=chip('GPS 꺼짐','#dc2626')+` <button type="button" onclick="SimdoAndroid.openLocationSettings()" class="underline text-blue-600">위치 켜기</button>`;
+   box.innerHTML=chip('GPS 꺼짐','#dc2626')+`<button type="button" onclick="SimdoAndroid.openLocationSettings()" class="underline text-blue-600 shrink-0 ml-1">위치 켜기</button>`;
    return;
  }
  const u=gnss.used;
  const c=u>=15?'#16a34a':u>=8?'#ca8a04':'#dc2626';
- let h=chip(`<i class="fa-solid fa-satellite"></i> 위성 ${u}개 사용 / ${gnss.visible}개 수신`,c);
- if(gnss.l5==='yes') h+=chip(gnss.l5used?'L1+L5 듀얼 사용 중':'L5 지원 (신호 대기)',gnss.l5used?'#16a34a':'#2563eb');
- else if(gnss.l5==='no') h+=chip('L1 단일 주파수','#64748b');
- h+=chip('GPS 칩 직접','#7c3aed');
+ let h=chip(`<i class="fa-solid fa-satellite"></i> 위성 ${u}/${gnss.visible}`,c);
+ if(gnss.l5==='yes') h+=chip(gnss.l5used?'L1+L5 듀얼':'L5 대기',gnss.l5used?'#16a34a':'#2563eb');
+ else if(gnss.l5==='no') h+=chip('L1 단일','#64748b');
+ h+=chip('GPS칩','#7c3aed');
  box.innerHTML=h;
 }
 

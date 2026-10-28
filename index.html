@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>심도측정 시스템 V0.1 (Kakao)</title>
+    <title>심도측정 시스템 V0.2 (Kakao)</title>
     <!-- Tailwind CSS CDN 및 FontAwesome 아이콘 적용 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -26,7 +26,7 @@
     <!-- 1. 상단 고정 헤더 -->
     <header class="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center shadow-sm">
         <h1 class="text-lg font-bold text-blue-600 flex items-center gap-2">
-            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V0.1</span>
+            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V0.2</span>
         </h1>
         <div class="flex items-center gap-1.5 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium text-gray-700">
             <i class="fa-solid fa-circle-user text-gray-500"></i>
@@ -70,6 +70,7 @@
             </div>
         
 <div id="gpsStatus" class="text-center text-sm font-bold text-gray-500 mt-2">GPS 신호 찾는 중...</div>
+<div id="gnssInfo" class="flex flex-wrap items-center justify-center gap-1.5 text-[11px] font-semibold"></div>
 <div class="flex items-center justify-center gap-2 text-xs text-gray-500">
   <span>저장 허용 정확도</span>
   <select id="gpsLimit" class="border border-gray-300 rounded-md px-2 py-1 bg-white text-gray-700 font-semibold">
@@ -325,7 +326,8 @@ document.addEventListener('DOMContentLoaded',()=>{
      const addr=currentAddr; // 도로명 → 없으면 지번 (안내 문구는 저장하지 않음)
      const now=new Date();
      const time=`${now.getFullYear()}. ${String(now.getMonth()+1).padStart(2,'0')}. ${String(now.getDate()).padStart(2,'0')}. ${now.getHours()<12?'오전':'오후'} ${String((now.getHours()%12)||12).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-     arr.push({manageNo,depth:v,time:time,address:addr,latitude:currentLat,longitude:currentLng,accuracy:currentAcc,samples:currentSamples,dist:currentDist,corrected:currentCorrected});
+     arr.push({manageNo,depth:v,time:time,address:addr,latitude:currentLat,longitude:currentLng,accuracy:currentAcc,samples:currentSamples,dist:currentDist,corrected:currentCorrected,sats:currentSats,src:gpsSource});
+     keepAwake();
      saveRecords(arr);
      refreshStats();
      showToast('저장되었습니다.','success');
@@ -405,12 +407,12 @@ document.addEventListener('DOMContentLoaded',()=>{
    const num=v=>{const n=parseFloat(v); return isNaN(n)?'':n;};
    const rows=data.map((r,i)=>({번호:i+1,관리번호:r.manageNo||'',주소:r.address||'',심도_m:num(r.depth),측정시간:r.time,
      위도:num(r.latitude),경도:num(r.longitude),GPS정확도_m:num(r.accuracy),GPS샘플수:num(r.samples),
-     직전거리_m:num(r.dist),위치보정:r.corrected?'지도보정':''}));
+     직전거리_m:num(r.dist),위치보정:r.corrected?'지도보정':'',사용위성수:num(r.sats),측위방식:r.src==='chip'?'GPS칩':r.src==='web'?'웹':''}));
    const ws=XLSX.utils.json_to_sheet(rows);
    // 위도·경도는 소수점 7자리까지 보이도록 표시 형식 지정
    const range=XLSX.utils.decode_range(ws['!ref']);
    for(let R=1;R<=range.e.r;R++){ [5,6].forEach(C=>{const c=ws[XLSX.utils.encode_cell({r:R,c:C})]; if(c&&c.t==='n') c.z='0.0000000';}); }
-   ws['!cols']=[{wch:5},{wch:14},{wch:32},{wch:7},{wch:24},{wch:12},{wch:13},{wch:10},{wch:9},{wch:9},{wch:8}];
+   ws['!cols']=[{wch:5},{wch:14},{wch:32},{wch:7},{wch:24},{wch:12},{wch:13},{wch:10},{wch:9},{wch:9},{wch:8},{wch:9},{wch:8}];
    const wb=XLSX.utils.book_new();
    XLSX.utils.book_append_sheet(wb,ws,'심도측정');
    const manageNo = data[0]?.manageNo || '심도측정';
@@ -430,7 +432,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 
  backupBtn.onclick=()=>{
    const data={
-     version:'V0.1',
+     version:'V0.2',
      user:localStorage.getItem('depth_user_name')||'',
      records:JSON.parse(localStorage.getItem('depth_records_v35')||'[]')
    };
@@ -652,7 +654,7 @@ async function reverseGeocode(lat,lng){
 
 <script>
 /*
- * GPS 정밀 측위 로직 (V0.1)
+ * GPS 정밀 측위 로직 (V0.2)
  * 1) 예열: 앱이 열려 있는 동안 GPS를 계속 수신해 최근 샘플을 버퍼에 보관
  *    → 측정 버튼을 누르면 이미 쌓인 샘플을 활용해 보통 1~3초 안에 확정
  * 2) 평균: 이동 중 샘플·튐값 제거 후 정확도 가중평균
@@ -668,7 +670,7 @@ const GPS_BUFFER_MS=15000;    // 버퍼 보관 시간
 const GPS_MIN_SAMPLES=3;
 const GPS_MOVING_SPEED=1.2;   // m/s 이상이면 걷는 중으로 보고 제외
 let gpsLiveId=null, gpsBuffer=[], gpsMeasuring=false, gpsMeasureStart=0, gpsMeasureTimer=null, gpsTickTimer=null;
-let currentSamples=0;
+let currentSamples=0, currentSats='';
 
 function gpsLimit(){
  const v=localStorage.getItem(GPS_LIMIT_KEY);
@@ -794,14 +796,57 @@ function computeWeightedPosition(samples){
 }
 
 // ── 예열: 백그라운드 연속 수신 ──
+// APK에서는 GPS 칩을 직접 사용(SimdoAndroid), 웹 브라우저에서는 일반 위치 API 사용
+let gpsSource='';           // 'chip' | 'web'
+let gnss={used:0,visible:0,l5:'unknown',l5used:false,gpsOn:true};
+const hasNative=()=>!!(window.SimdoAndroid&&window.SimdoAndroid.startGps);
+
+function onGpsSample(lat,lng,acc,speed){
+ gpsBuffer.push({lat,lng,accuracy:acc||50,speed,t:Date.now()});
+ const cut=Date.now()-GPS_BUFFER_MS;
+ while(gpsBuffer.length&&gpsBuffer[0].t<cut) gpsBuffer.shift();
+ if(gpsMeasuring) checkMeasureDone(); else showLiveStatus();
+}
+window.__nativeGps=p=>{ if(gpsSource==='chip') onGpsSample(p.lat,p.lng,p.acc,p.speed); };
+window.__gnssStatus=g=>{ gnss=g; renderGnssInfo(); };
+window.__nativeGpsReady=()=>{ if(gpsSource!=='chip'){ stopLiveGps(); startLiveGps(); } };
+
+function renderGnssInfo(){
+ const box=document.getElementById('gnssInfo'); if(!box) return;
+ const chip=(t,c)=>`<span class="px-2 py-0.5 rounded-full" style="background:${c}1a;color:${c}">${t}</span>`;
+ if(gpsSource!=='chip'){
+   box.innerHTML=gpsSource==='web'?chip('웹 위치 (GPS·Wi-Fi·기지국 혼합)','#64748b'):'';
+   return;
+ }
+ if(!gnss.gpsOn){
+   box.innerHTML=chip('GPS 꺼짐','#dc2626')+` <button type="button" onclick="SimdoAndroid.openLocationSettings()" class="underline text-blue-600">위치 켜기</button>`;
+   return;
+ }
+ const u=gnss.used;
+ const c=u>=15?'#16a34a':u>=8?'#ca8a04':'#dc2626';
+ let h=chip(`<i class="fa-solid fa-satellite"></i> 위성 ${u}개 사용 / ${gnss.visible}개 수신`,c);
+ if(gnss.l5==='yes') h+=chip(gnss.l5used?'L1+L5 듀얼 사용 중':'L5 지원 (신호 대기)',gnss.l5used?'#16a34a':'#2563eb');
+ else if(gnss.l5==='no') h+=chip('L1 단일 주파수','#64748b');
+ h+=chip('GPS 칩 직접','#7c3aed');
+ box.innerHTML=h;
+}
+
 function startLiveGps(){
- if(!navigator.geolocation||gpsLiveId!==null) return;
+ if(gpsLiveId!==null||gpsSource==='chip') return;
+ if(hasNative()){
+   const r=SimdoAndroid.startGps();
+   if(r==='ok'||r==='gpsoff'){
+     gpsSource='chip'; renderGnssInfo();
+     if(r==='gpsoff'){ const s=document.getElementById('gpsStatus'); if(s){ s.textContent='휴대폰 위치(GPS)가 꺼져 있습니다'; s.style.color='red'; } }
+     return;
+   }
+   // 권한 없음 등 → 웹 방식으로 시작(권한 요청 창이 뜸), 권한 허용되면 __nativeGpsReady로 전환
+ }
+ if(!navigator.geolocation) return;
+ gpsSource='web'; renderGnssInfo();
  gpsLiveId=navigator.geolocation.watchPosition(p=>{
    const c=p.coords;
-   gpsBuffer.push({lat:c.latitude,lng:c.longitude,accuracy:c.accuracy||50,speed:c.speed,t:Date.now()});
-   const cut=Date.now()-GPS_BUFFER_MS;
-   while(gpsBuffer.length&&gpsBuffer[0].t<cut) gpsBuffer.shift();
-   if(gpsMeasuring) checkMeasureDone(); else showLiveStatus();
+   onGpsSample(c.latitude,c.longitude,c.accuracy,c.speed);
  },err=>{
    console.error(err);
    const s=document.getElementById('gpsStatus');
@@ -815,8 +860,11 @@ function startLiveGps(){
  },{enableHighAccuracy:true,maximumAge:0,timeout:15000});
 }
 function stopLiveGps(){
+ if(gpsSource==='chip'&&hasNative()) SimdoAndroid.stopGps();
  if(gpsLiveId!==null){ navigator.geolocation.clearWatch(gpsLiveId); gpsLiveId=null; }
+ gpsSource='';
 }
+function keepAwake(){ try{ if(window.SimdoAndroid&&SimdoAndroid.keepAwake) SimdoAndroid.keepAwake(); }catch(e){} }
 
 // ── 측정 ──
 function measureSamples(){
@@ -858,6 +906,7 @@ async function finalizeGps(){
  currentLng=r.lng.toFixed(7);
  currentAcc=r.accuracy;
  currentSamples=r.count;
+ currentSats=gpsSource==='chip'?gnss.used:'';
  currentCorrected=false;
  calcDistFromLast();
  updateGpsStatus();
@@ -867,6 +916,7 @@ async function finalizeGps(){
 function startGpsCollection(){
  if(!navigator.geolocation){ showToast('이 기기는 GPS 기능을 지원하지 않습니다.','error'); return; }
  startLiveGps();
+ keepAwake();
  currentAcc=''; currentLat=''; currentLng=''; currentSamples=0; currentCorrected=false; currentDist=null; currentAddr='';
  const mb=document.getElementById('mapFixBtn'); if(mb) mb.disabled=true;
  gpsMeasuring=true; fixBase=null;
@@ -897,12 +947,13 @@ document.addEventListener('DOMContentLoaded',()=>{
  if(limitSel) limitSel.addEventListener('click',e=>e.stopPropagation());
 
  startLiveGps(); // 예열 시작
+ keepAwake();
  if(document.getElementById('autoGpsMode')?.checked) setTimeout(startGpsCollection,800);
 
  // 화면이 꺼지거나 다른 앱으로 가면 배터리 절약을 위해 중지, 돌아오면 재시작
  document.addEventListener('visibilitychange',()=>{
    if(document.hidden){ if(!gpsMeasuring) stopLiveGps(); }
-   else startLiveGps();
+   else { startLiveGps(); keepAwake(); }
  });
 });
 </script>

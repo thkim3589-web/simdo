@@ -98,6 +98,8 @@
               <span class="text-[11px] font-bold text-gray-400 mr-0.5">위치</span>
               <div id="locBtns" class="flex items-center gap-1.5 flex-nowrap"></div>
             </div>
+            <input type="text" id="locEtc" maxlength="20" placeholder="기타 위치 직접 입력 (예: 농로, 교량, 하천변)" style="display:none"
+                   class="w-full bg-gray-50 border-2 border-gray-200 focus:border-blue-500 focus:bg-white rounded-lg py-2 px-3 text-sm font-semibold text-gray-800 focus:outline-none">
             <div class="relative flex items-center">
                 <input type="number" id="depth" step="0.01" placeholder="0.00" 
                        class="w-full bg-gray-50 border-2 border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl py-3.5 px-4 text-2xl font-bold text-gray-800 transition-all text-right pr-12 focus:outline-none">
@@ -236,7 +238,7 @@
         <section class="bg-white rounded-xl border border-gray-200/80 shadow-sm divide-y divide-gray-100">
           <h3 class="px-4 pt-3 pb-2 text-xs font-bold text-gray-400 tracking-wider">심도 판정 기준</h3>
           <div class="px-4 py-3 space-y-2">
-            <div class="text-xs text-gray-500">위치별로 <b>입력값 이하이면 미달</b>로 판정합니다. 비워두면 판정하지 않습니다.</div>
+            <div class="text-xs text-gray-500">위치별로 <b>입력값 이하이면 미달</b>로 판정합니다. 비워두면 판정하지 않습니다. 기타에서 직접 입력한 위치는 모두 '기타' 기준을 따릅니다.</div>
             <div id="judgeLimitRows" class="space-y-2"></div>
           </div>
           <div class="flex items-center justify-between px-4 py-3 gap-3">
@@ -316,6 +318,9 @@ function judgeCfg(){
 }
 function saveJudgeCfg(c){ localStorage.setItem(JUDGE_KEY,JSON.stringify(c)); }
 function currentLoc(){ return localStorage.getItem(LOC_KEY)||''; }
+const LOC_ETC_KEY='depth_loc_etc';
+// 기록·화면에 쓰는 위치 이름: 기타면 직접 입력한 글자(없으면 '기타')
+function currentLocText(){ const c=currentLoc(); return c==='기타' ? ((localStorage.getItem(LOC_ETC_KEY)||'').trim()||'기타') : c; }
 // 반환: {result:'적합'|'주의'|'미달'|'', limit, eff}
 function judgeDepth(depth,loc){
   const c=judgeCfg();
@@ -448,9 +453,10 @@ document.addEventListener('DOMContentLoaded',()=>{
        if(!confirm(`입력하신 심도(${v}m)가 비정상적으로 큰 값입니다. 계속 저장하시겠습니까?`)) return;
      }
 
-     const loc=currentLoc();
-     if(!loc && !confirm('위치 구분(차도/보도 등)이 선택되지 않았습니다. 그대로 저장하시겠습니까?')) return;
-     const jd=judgeDepth(v,loc);
+     const locCat=currentLoc();
+     if(!locCat && !confirm('위치 구분(차도/보도 등)이 선택되지 않았습니다. 그대로 저장하시겠습니까?')) return;
+     const loc=currentLocText();
+     const jd=judgeDepth(v,locCat);
 
      const manageNo=document.getElementById('manageNo')?.value?.trim()||'';
      if(!manageNo){
@@ -462,7 +468,7 @@ document.addEventListener('DOMContentLoaded',()=>{
      const addr=currentAddr; // 도로명 → 없으면 지번 (안내 문구는 저장하지 않음)
      const now=new Date();
      const time=`${now.getFullYear()}. ${String(now.getMonth()+1).padStart(2,'0')}. ${String(now.getDate()).padStart(2,'0')}. ${now.getHours()<12?'오전':'오후'} ${String((now.getHours()%12)||12).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-     arr.push({manageNo,depth:v,time:time,address:addr,latitude:currentLat,longitude:currentLng,accuracy:currentAcc,samples:currentSamples,dist:currentDist,corrected:currentCorrected,sats:currentSats,src:gpsSource,user:localStorage.getItem('depth_user_name')||'김태호',loc,judge:jd.result,limit:jd.limit});
+     arr.push({manageNo,depth:v,time:time,address:addr,latitude:currentLat,longitude:currentLng,accuracy:currentAcc,samples:currentSamples,dist:currentDist,corrected:currentCorrected,sats:currentSats,src:gpsSource,user:localStorage.getItem('depth_user_name')||'김태호',loc,locCat,judge:jd.result,limit:jd.limit});
      keepAwake();
      saveRecords(arr);
      refreshStats();
@@ -1181,6 +1187,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     </label>
     <label class="block text-xs font-bold text-gray-500">위치 구분
       <select id="editLoc" class="mt-1 w-full bg-gray-50 border-2 border-gray-200 rounded-xl py-2.5 px-3 text-base font-bold text-gray-800"></select>
+      <input id="editLocEtc" type="text" maxlength="20" placeholder="기타 위치 직접 입력" style="display:none" class="mt-1.5 w-full bg-gray-50 border-2 border-gray-200 rounded-xl py-2 px-3 text-sm font-semibold text-gray-800 focus:outline-none focus:border-blue-500">
     </label>
     <label class="block text-xs font-bold text-gray-500">심도 (m)
       <input id="editDepth" type="number" step="0.01" inputmode="decimal" class="mt-1 w-full bg-gray-50 border-2 border-gray-200 rounded-xl py-2.5 px-3 text-2xl font-bold text-gray-800 text-right focus:outline-none focus:border-blue-500">
@@ -1236,7 +1243,12 @@ document.addEventListener('DOMContentLoaded',()=>{
     mDepth.value=r.depth;
     const el=document.getElementById('editLoc');
     el.innerHTML='<option value="">선택 안 함</option>'+LOCS.map(l=>`<option>${l}</option>`).join('');
-    el.value=r.loc||'';
+    const cat=r.locCat||(LOCS.includes(r.loc)?r.loc:(r.loc?'기타':''));
+    el.value=cat;
+    const et=document.getElementById('editLocEtc');
+    et.value=(cat==='기타'&&r.loc&&r.loc!=='기타')?r.loc:'';
+    et.style.display=cat==='기타'?'block':'none';
+    el.onchange=()=>{ et.style.display=el.value==='기타'?'block':'none'; };
     modal.style.display='flex';
   }
   document.addEventListener('click',e=>{
@@ -1252,8 +1264,10 @@ document.addEventListener('DOMContentLoaded',()=>{
     const arr=loadRecords(); if(!arr[editIdx]) return close();
     arr[editIdx].depth=v;
     arr[editIdx].manageNo=mManage.value.trim();
-    arr[editIdx].loc=document.getElementById('editLoc').value;
-    const jd=judgeDepth(v,arr[editIdx].loc);
+    const cat=document.getElementById('editLoc').value;
+    arr[editIdx].locCat=cat;
+    arr[editIdx].loc= cat==='기타' ? (document.getElementById('editLocEtc').value.trim()||'기타') : cat;
+    const jd=judgeDepth(v,cat);
     arr[editIdx].judge=jd.result; arr[editIdx].limit=jd.limit;
     arr[editIdx].edited=true;
     saveRecords(arr); close(); refreshStats();
@@ -1358,16 +1372,19 @@ function renderLocBtns(){
   const cur=currentLoc();
   // 위성 수 표시와 같은 작은 알약 모양
   box.innerHTML=LOCS.map(l=>`<button type="button" data-loc="${l}" class="px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap" style="${l===cur?'background:#2563eb;color:#fff':'background:#64748b1a;color:#64748b'}">${l}</button>`).join('');
+  const etc=document.getElementById('locEtc');
+  if(etc){ etc.style.display=cur==='기타'?'block':'none'; etc.value=localStorage.getItem(LOC_ETC_KEY)||''; }
 }
 function renderJudgeLive(){
   const el=document.getElementById('judgeLive'); if(!el) return;
   const v=document.getElementById('depth').value;
   const loc=currentLoc();
+  const name=esc(currentLocText());
   const c=judgeCfg();
   const lim=c.limits[loc];
   if(!loc){ el.innerHTML='<span style="color:#94a3b8">위치 구분을 선택하세요</span>'; return; }
-  if(lim===undefined||lim===''){ el.innerHTML=`<span style="color:#94a3b8">${loc}: 판정 기준 없음</span>`; return; }
-  if(v===''){ el.innerHTML=`<span style="color:#64748b">${loc} 기준: ${lim}m 이하 미달</span>`; return; }
+  if(lim===undefined||lim===''){ el.innerHTML=`<span style="color:#94a3b8">${name}: 판정 기준 없음</span>`; return; }
+  if(v===''){ el.innerHTML=`<span style="color:#64748b">${name} 기준: ${lim}m 이하 미달</span>`; return; }
   const jd=judgeDepth(v,loc);
   const icon={'적합':'fa-circle-check','주의':'fa-triangle-exclamation','미달':'fa-circle-xmark'}[jd.result];
   const effTxt=(c.ref==='center'&&c.od>0)?` · 관 상단 ${jd.eff.toFixed(2)}m`:'';
@@ -1407,6 +1424,10 @@ document.addEventListener('DOMContentLoaded',()=>{
     const l=b.dataset.loc;
     localStorage.setItem(LOC_KEY, currentLoc()===l?'':l); // 같은 버튼 다시 누르면 해제
     renderLocBtns(); renderJudgeLive();
+    if(currentLoc()==='기타' && !document.getElementById('locEtc').value) document.getElementById('locEtc').focus();
+  });
+  document.getElementById('locEtc').addEventListener('input',e=>{
+    localStorage.setItem(LOC_ETC_KEY,e.target.value); renderJudgeLive();
   });
   document.getElementById('depth').addEventListener('input',renderJudgeLive);
   const ss=document.getElementById('settingsModal');

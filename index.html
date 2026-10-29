@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>심도측정 시스템 V0.9 (Kakao)</title>
+    <title>심도측정 시스템 V1.0 (Kakao)</title>
     <!-- Tailwind CSS CDN 및 FontAwesome 아이콘 적용 -->
     <link rel="stylesheet" href="./lib/app.css">
     <link rel="stylesheet" href="./lib/fontawesome/css/fontawesome.min.css">
@@ -32,7 +32,7 @@
     <!-- 1. 상단 고정 헤더 -->
     <header class="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center shadow-sm">
         <h1 class="text-lg font-bold text-blue-600 flex items-center gap-2">
-            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V0.9</span>
+            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V1.0</span>
         </h1>
         <div class="flex items-center gap-2">
             <div class="flex items-center gap-1.5 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium text-gray-700">
@@ -44,6 +44,19 @@
             </button>
         </div>
     </header>
+
+    <!-- 업데이트 알림 -->
+    <div id="updateBanner" style="display:none" class="sticky top-0 z-40 bg-blue-600 text-white px-4 py-2.5 shadow-md">
+      <div class="max-w-md mx-auto flex items-center gap-2 text-sm">
+        <i class="fa-solid fa-circle-arrow-up text-lg"></i>
+        <div class="flex-1 min-w-0">
+          <div id="updateTitle" class="font-bold"></div>
+          <div id="updateNote" class="text-xs text-blue-100 truncate"></div>
+        </div>
+        <button type="button" id="updateLater" class="text-xs text-blue-100 px-2 py-1.5">나중에</button>
+        <button type="button" id="updateGo" class="bg-white text-blue-700 font-bold text-sm px-3 py-1.5 rounded-lg">업데이트</button>
+      </div>
+    </div>
 
     <!-- 메인 컨텐츠 영역 -->
     <main class="max-w-md mx-auto p-4 space-y-4">
@@ -280,7 +293,13 @@
 
         <section class="bg-white rounded-xl border border-gray-200/80 shadow-sm divide-y divide-gray-100">
           <h3 class="px-4 pt-3 pb-2 text-xs font-bold text-gray-400 tracking-wider">앱 정보</h3>
-          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V0.9</span></div>
+          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">화면 버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V1.0</span></div>
+          <div id="settingsApkRow" style="display:none" class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">앱(APK) 버전</span><span class="font-semibold text-gray-800" id="settingsApkVer"></span></div>
+          <div id="settingsUpdateRow" style="display:none" class="px-4 py-3 space-y-2">
+            <button type="button" id="checkUpdateBtn" class="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold"><i class="fa-solid fa-rotate mr-1"></i>업데이트 확인</button>
+            <div id="updateStatusText" class="text-xs text-gray-500 text-center">인터넷이 연결되어 있으면 앱을 열 때 자동으로 확인합니다</div>
+            <button type="button" id="revertWebBtn" style="display:none" class="w-full py-2 rounded-xl border border-gray-300 text-gray-600 text-xs font-semibold">기본 버전으로 되돌리기</button>
+          </div>
           <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">저장된 기록</span><span class="font-semibold text-gray-800" id="settingsRecordCount">0건</span></div>
         </section>
 
@@ -618,7 +637,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 
  backupBtn.onclick=()=>{
    const data={
-     version:'V0.9',
+     version:'V1.0',
      user:localStorage.getItem('depth_user_name')||'',
      judge:localStorage.getItem(JUDGE_KEY)||'',
      records:JSON.parse(localStorage.getItem('depth_records_v35')||'[]')
@@ -842,7 +861,7 @@ async function reverseGeocode(lat,lng){
 
 <script>
 /*
- * GPS 정밀 측위 로직 (V0.9)
+ * GPS 정밀 측위 로직 (V1.0)
  * 1) 예열: 앱이 열려 있는 동안 GPS를 계속 수신해 최근 샘플을 버퍼에 보관
  *    → 측정 버튼을 누르면 이미 쌓인 샘플을 활용해 보통 1~3초 안에 확정
  * 2) 평균: 이동 중 샘플·튐값 제거 후 정확도 가중평균
@@ -1382,6 +1401,91 @@ document.addEventListener('DOMContentLoaded',()=>{
 </script>
 
 <script>
+/* ── 업데이트 알림 ──
+ * 화면 내장 APK(V1.0 이상): 앱을 열 때 인터넷이 되면 버전 번호만 확인 → 새 버전이면 알림
+ * 예전 APK(V0.2~0.5): 새 앱(APK)을 받으라는 안내
+ * 웹 브라우저: 항상 최신이라 알림 없음
+ */
+const HAS_UPDATER=!!(window.SimdoAndroid&&SimdoAndroid.checkUpdate);
+let updManual=false, updPending=null;
+function verInfo(){ try{ return HAS_UPDATER?JSON.parse(SimdoAndroid.getVersionInfo()):null; }catch(e){ return null; } }
+function codeName(c){ return `V${Math.floor(c/100)}.${c%100}`; }
+function showUpdateBanner(title,note,btn,onGo){
+  const b=document.getElementById('updateBanner');
+  document.getElementById('updateTitle').textContent=title;
+  document.getElementById('updateNote').textContent=note||'';
+  const go=document.getElementById('updateGo'); go.textContent=btn||'업데이트'; go.disabled=false; go.style.opacity='1';
+  go.onclick=onGo;
+  const h=document.querySelector('header'); if(h) b.style.top=h.offsetHeight+'px'; // 헤더 바로 아래 고정
+  b.style.display='block';
+}
+function hideUpdateBanner(){ document.getElementById('updateBanner').style.display='none'; }
+function setUpdStatus(t){ const e=document.getElementById('updateStatusText'); if(e) e.textContent=t; }
+
+window.__updateCheck=r=>{
+  const manual=updManual; updManual=false;
+  if(!r||!r.ok){ setUpdStatus('확인 실패: 인터넷 연결을 확인하세요'); if(manual) showToast('업데이트 확인 실패 (인터넷 연결 확인)','error'); return; }
+  const L=r.latest||{}, C=r.current||{};
+  const apk=L.apk||{}, webu=L.web||{};
+  if(apk.code>C.apkCode){
+    updPending='apk';
+    showUpdateBanner(`새 앱 버전 ${apk.name||''}이 있습니다`, L.notes||'설치 화면이 뜨면 [업데이트]를 눌러주세요', '업데이트', ()=>runUpdate('apk'));
+    setUpdStatus(`새 앱 버전 ${apk.name||''} 있음`);
+  }else if(webu.code>C.webCode){
+    updPending='web';
+    showUpdateBanner(`새 버전 ${webu.name||codeName(webu.code)}이 있습니다`, L.notes||'', '업데이트', ()=>runUpdate('web'));
+    setUpdStatus(`새 버전 ${webu.name||codeName(webu.code)} 있음`);
+  }else{
+    setUpdStatus(`최신 버전입니다 (확인 ${new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})})`);
+    if(manual) showToast('최신 버전입니다.','success');
+  }
+};
+window.__updateProgress=t=>{
+  const go=document.getElementById('updateGo'); go.disabled=true; go.style.opacity='0.6';
+  document.getElementById('updateNote').textContent=t; setUpdStatus(t);
+};
+window.__updateFailed=t=>{
+  showToast('업데이트 실패: '+t,'error'); setUpdStatus('업데이트 실패: '+t);
+  const go=document.getElementById('updateGo'); go.disabled=false; go.style.opacity='1'; go.textContent='다시 시도';
+};
+function runUpdate(kind){
+  if(kind==='web' && !confirm('새 버전으로 업데이트합니다. 측정 기록은 그대로 유지됩니다. 진행할까요?')) return;
+  window.__updateProgress('새 버전 내려받는 중...');
+  SimdoAndroid.applyUpdate(kind);
+}
+function refreshUpdateSettings(){
+  const v=verInfo();
+  if(!v) return;
+  document.getElementById('settingsApkRow').style.display='flex';
+  document.getElementById('settingsUpdateRow').style.display='block';
+  document.getElementById('settingsApkVer').textContent=v.apkName||'';
+  document.getElementById('settingsVersion').textContent=codeName(v.webCode)+(v.updatedWeb?' (업데이트됨)':'');
+  document.getElementById('revertWebBtn').style.display=v.updatedWeb?'block':'none';
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('updateLater').onclick=hideUpdateBanner;
+  if(HAS_UPDATER){
+    refreshUpdateSettings();
+    document.getElementById('checkUpdateBtn').onclick=()=>{ updManual=true; setUpdStatus('확인 중...'); SimdoAndroid.checkUpdate(); };
+    document.getElementById('revertWebBtn').onclick=()=>{ if(confirm('업데이트로 받은 화면을 지우고 앱에 들어 있던 기본 버전으로 되돌릴까요? 측정 기록은 그대로입니다.')) SimdoAndroid.revertWeb(); };
+    document.getElementById('openSettingsBtn').addEventListener('click',refreshUpdateSettings);
+    // 앱을 열 때 인터넷이 되면 자동 확인 (버전 번호만 받음)
+    setTimeout(()=>{ if(navigator.onLine!==false) SimdoAndroid.checkUpdate(); },2500);
+  }else if(window.SimdoAndroid && !/SimdoBundled\/|SimdoApp\/0\.9(\D|$)/.test(navigator.userAgent)){
+    // 예전 APK(V0.2~0.5): 화면은 자동 최신이지만 앱 자체는 새로 설치해야 함
+    const KEY='old_apk_notice_day', today=new Date().toDateString();
+    if(localStorage.getItem(KEY)!==today){
+      showUpdateBanner('새 심도측정 앱(V1.0)이 나왔습니다','인터넷 없이 동작하고, 앞으로 앱 안에서 업데이트됩니다','받기',()=>{
+        location.href='./simdo.apk';
+        document.getElementById('updateNote').textContent='다운로드가 끝나면 알림창에서 파일을 눌러 설치하세요';
+      });
+      document.getElementById('updateLater').onclick=()=>{ localStorage.setItem(KEY,today); hideUpdateBanner(); };
+    }
+  }
+});
+</script>
+
+<script>
 /* ── 최근 저장 이력 펼치기/접기 (상태 기억) ── */
 const HIST_KEY='depth_hist_collapsed';
 function applyHistState(collapsed){
@@ -1543,7 +1647,9 @@ document.addEventListener('DOMContentLoaded',()=>{
 <script>
 // 화면을 앱 안에 내장한 APK(V0.9 이상)인지: 앱이 붙이는 'SimdoApp/버전' 표시로 구분
 // (예전 APK V0.2~0.5는 GitHub에서 화면을 불러오므로 오프라인용 서비스워커가 계속 필요)
-const BUNDLED_APK=(()=>{ const m=navigator.userAgent.match(/SimdoApp\/(\d+)\.(\d+)/); return !!m && (Number(m[1])>0 || Number(m[2])>=9); })();
+// 화면 내장 APK: 'SimdoBundled' 표시가 있는 앱(V1.0~) 또는 V0.9
+// (주의: 이번 주 맨 처음 만든 APK도 'SimdoApp/1.0'이라 숫자만으로는 구분 불가)
+const BUNDLED_APK=/SimdoBundled\//.test(navigator.userAgent) || /SimdoApp\/0\.9(\D|$)/.test(navigator.userAgent);
 if('serviceWorker' in navigator){
  if(BUNDLED_APK){
    // APK 앱: 화면이 앱 안에 내장되어 있으므로 예전에 등록된 서비스워커를 정리

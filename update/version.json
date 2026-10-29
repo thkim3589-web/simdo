@@ -1,0 +1,18 @@
+{
+ "web": {
+  "code": 100,
+  "name": "V1.0",
+  "file": "update/web-100.zip",
+  "sha256": "5c82b03f1fbc87cab600a7152a454fb5583b4cca420cbadee7a227a80a6229f3",
+  "size": 833494
+ },
+ "apk": {
+  "code": 6,
+  "name": "1.0",
+  "file": "simdo.apk",
+  "sha256": "fa4f079159fe11bdecd4c91907123bbd9652f10969bfc07637df0051e66fda46",
+  "size": 864313
+ },
+ "notes": "앱 안에서 업데이트 기능 추가",
+ "date": "2026-10-29"
+}

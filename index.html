@@ -94,9 +94,9 @@
             <label for="depth" class="text-sm font-bold text-gray-500 flex items-center gap-1.5 uppercase tracking-wider">
                 <i class="fa-solid fa-ruler-vertical text-blue-500"></i> 측정 심도 입력
             </label>
-            <div>
-              <div class="text-xs font-bold text-gray-400 mb-1.5">위치 구분</div>
-              <div id="locBtns" class="grid grid-cols-4 gap-1.5"></div>
+            <div class="flex items-center justify-center gap-1.5 flex-nowrap whitespace-nowrap">
+              <span class="text-[11px] font-bold text-gray-400 mr-0.5">위치</span>
+              <div id="locBtns" class="flex items-center gap-1.5 flex-nowrap"></div>
             </div>
             <div class="relative flex items-center">
                 <input type="number" id="depth" step="0.01" placeholder="0.00" 
@@ -1356,7 +1356,8 @@ document.addEventListener('DOMContentLoaded',()=>{
 function renderLocBtns(){
   const box=document.getElementById('locBtns'); if(!box) return;
   const cur=currentLoc();
-  box.innerHTML=LOCS.map(l=>`<button type="button" data-loc="${l}" class="py-2.5 rounded-lg text-sm font-bold border ${l===cur?'bg-blue-600 text-white border-blue-600':'bg-white text-gray-600 border-gray-300'}">${l}</button>`).join('');
+  // 위성 수 표시와 같은 작은 알약 모양
+  box.innerHTML=LOCS.map(l=>`<button type="button" data-loc="${l}" class="px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap" style="${l===cur?'background:#2563eb;color:#fff':'background:#64748b1a;color:#64748b'}">${l}</button>`).join('');
 }
 function renderJudgeLive(){
   const el=document.getElementById('judgeLive'); if(!el) return;

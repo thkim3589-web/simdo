@@ -62,16 +62,19 @@
 <span id="gpsLimitBadge" class="text-xs font-semibold bg-white border border-blue-200 rounded-full px-2 py-0.5">기준 ±5m</span>
 </button>
 
-            <!-- 주소 매핑 결과 창 -->
-            <div class="bg-gray-50 p-3 rounded-lg space-y-2 text-sm border border-gray-100">
-                <div class="flex justify-between items-start">
-                    <span class="text-gray-400 w-16 font-medium">도로명</span>
+            <!-- 주소 매핑 결과 창 (글자 크기에 맞춘 촘촘한 행) -->
+            <div class="bg-gray-50 px-3 py-1 rounded-lg text-sm border border-gray-100 divide-y divide-gray-200/60 leading-tight">
+                <div class="flex items-center py-1.5">
+                    <span class="text-gray-400 w-14 shrink-0 font-medium">도로명</span>
                     <span class="text-gray-700 flex-1 font-medium"><span id="roadAddr">도로명 주소를 불러오는 중...</span></span>
                 </div>
-                <div class="border-t border-gray-200/60 my-1.5"></div>
-                <div class="flex justify-between items-start">
-                    <span class="text-gray-400 w-16 font-medium">지번</span>
-                    <span class="text-gray-600 flex-1 text-xs font-mono"><span id="jibunAddr">지번을 불러오는 중...</span></span></div><div class="border-t border-gray-200/60 my-1.5"></div><div class="flex justify-between items-start"><span class="text-gray-400 w-16 font-medium">GPS</span><span class="text-gray-600 flex-1 text-xs font-mono"><span id="gpsCoord">GPS를 불러오는 중...</span></span>
+                <div class="flex items-center py-1.5">
+                    <span class="text-gray-400 w-14 shrink-0 font-medium">지번</span>
+                    <span class="text-gray-600 flex-1 text-xs font-mono"><span id="jibunAddr">지번을 불러오는 중...</span></span>
+                </div>
+                <div class="flex items-center py-1.5">
+                    <span class="text-gray-400 w-14 shrink-0 font-medium">GPS</span>
+                    <span class="text-gray-600 flex-1 text-xs font-mono"><span id="gpsCoord">GPS를 불러오는 중...</span></span>
                 </div>
             </div>
         

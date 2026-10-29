@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>심도측정 시스템 V0.6 (Kakao)</title>
+    <title>심도측정 시스템 V0.7 (Kakao)</title>
     <!-- Tailwind CSS CDN 및 FontAwesome 아이콘 적용 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -27,7 +27,7 @@
     <!-- 1. 상단 고정 헤더 -->
     <header class="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center shadow-sm">
         <h1 class="text-lg font-bold text-blue-600 flex items-center gap-2">
-            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V0.6</span>
+            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V0.7</span>
         </h1>
         <div class="flex items-center gap-2">
             <div class="flex items-center gap-1.5 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium text-gray-700">
@@ -230,7 +230,7 @@
 
         <section class="bg-white rounded-xl border border-gray-200/80 shadow-sm divide-y divide-gray-100">
           <h3 class="px-4 pt-3 pb-2 text-xs font-bold text-gray-400 tracking-wider">앱 정보</h3>
-          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V0.6</span></div>
+          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V0.7</span></div>
           <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">저장된 기록</span><span class="font-semibold text-gray-800" id="settingsRecordCount">0건</span></div>
         </section>
 
@@ -394,7 +394,7 @@ document.addEventListener('DOMContentLoaded',()=>{
      const addr=currentAddr; // 도로명 → 없으면 지번 (안내 문구는 저장하지 않음)
      const now=new Date();
      const time=`${now.getFullYear()}. ${String(now.getMonth()+1).padStart(2,'0')}. ${String(now.getDate()).padStart(2,'0')}. ${now.getHours()<12?'오전':'오후'} ${String((now.getHours()%12)||12).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-     arr.push({manageNo,depth:v,time:time,address:addr,latitude:currentLat,longitude:currentLng,accuracy:currentAcc,samples:currentSamples,dist:currentDist,corrected:currentCorrected,sats:currentSats,src:gpsSource});
+     arr.push({manageNo,depth:v,time:time,address:addr,latitude:currentLat,longitude:currentLng,accuracy:currentAcc,samples:currentSamples,dist:currentDist,corrected:currentCorrected,sats:currentSats,src:gpsSource,user:localStorage.getItem('depth_user_name')||'김태호'});
      keepAwake();
      saveRecords(arr);
      refreshStats();
@@ -473,7 +473,8 @@ document.addEventListener('DOMContentLoaded',()=>{
    const data=loadRecords();
    if(!data.length){showToast('내보낼 데이터가 없습니다.','warn');return;}
    const num=v=>{const n=parseFloat(v); return isNaN(n)?'':n;};
-   const rows=data.map((r,i)=>({번호:i+1,관리번호:r.manageNo||'',주소:r.address||'',심도_m:num(r.depth),측정시간:r.time,
+   const curUser=localStorage.getItem('depth_user_name')||'김태호';
+   const rows=data.map((r,i)=>({번호:i+1,측정자:r.user||curUser,관리번호:r.manageNo||'',주소:r.address||'',심도_m:num(r.depth),측정시간:r.time,
      위도:num(r.latitude),경도:num(r.longitude),GPS정확도_m:num(r.accuracy),GPS샘플수:num(r.samples),
      직전거리_m:num(r.dist),위치보정:r.corrected?'지도보정':'',사용위성수:num(r.sats),측위방식:r.src==='chip'?'GPS칩':r.src==='web'?'웹':''}));
    const ws=XLSX.utils.json_to_sheet(rows);
@@ -492,10 +493,10 @@ document.addEventListener('DOMContentLoaded',()=>{
             alignment:{horizontal:'center',vertical:'center'},border}
          : {font,alignment:{horizontal:'center',vertical:'center'},border};
        // 위도·경도 소수점 7자리
-       if(R>0 && (C===5||C===6) && c.t==='n') c.z='0.0000000';
+       if(R>0 && (C===6||C===7) && c.t==='n') c.z='0.0000000';
      }
    }
-   ws['!cols']=[{wch:5},{wch:12},{wch:30},{wch:8},{wch:26},{wch:11},{wch:12},{wch:11},{wch:9},{wch:10},{wch:12},{wch:9},{wch:9}];
+   ws['!cols']=[{wch:5},{wch:9},{wch:12},{wch:30},{wch:8},{wch:26},{wch:11},{wch:12},{wch:11},{wch:9},{wch:10},{wch:12},{wch:9},{wch:9}];
    ws['!rows']=[{hpt:20}];
    const wb=XLSX.utils.book_new();
    XLSX.utils.book_append_sheet(wb,ws,'심도측정');
@@ -516,7 +517,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 
  backupBtn.onclick=()=>{
    const data={
-     version:'V0.6',
+     version:'V0.7',
      user:localStorage.getItem('depth_user_name')||'',
      records:JSON.parse(localStorage.getItem('depth_records_v35')||'[]')
    };
@@ -738,7 +739,7 @@ async function reverseGeocode(lat,lng){
 
 <script>
 /*
- * GPS 정밀 측위 로직 (V0.6)
+ * GPS 정밀 측위 로직 (V0.7)
  * 1) 예열: 앱이 열려 있는 동안 GPS를 계속 수신해 최근 샘플을 버퍼에 보관
  *    → 측정 버튼을 누르면 이미 쌓인 샘플을 활용해 보통 1~3초 안에 확정
  * 2) 평균: 이동 중 샘플·튐값 제거 후 정확도 가중평균

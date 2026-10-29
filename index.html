@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>심도측정 시스템 V0.7 (Kakao)</title>
+    <title>심도측정 시스템 V0.8 (Kakao)</title>
     <!-- Tailwind CSS CDN 및 FontAwesome 아이콘 적용 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -27,7 +27,7 @@
     <!-- 1. 상단 고정 헤더 -->
     <header class="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center shadow-sm">
         <h1 class="text-lg font-bold text-blue-600 flex items-center gap-2">
-            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V0.7</span>
+            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V0.8</span>
         </h1>
         <div class="flex items-center gap-2">
             <div class="flex items-center gap-1.5 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium text-gray-700">
@@ -94,11 +94,16 @@
             <label for="depth" class="text-sm font-bold text-gray-500 flex items-center gap-1.5 uppercase tracking-wider">
                 <i class="fa-solid fa-ruler-vertical text-blue-500"></i> 측정 심도 입력
             </label>
+            <div>
+              <div class="text-xs font-bold text-gray-400 mb-1.5">위치 구분</div>
+              <div id="locBtns" class="grid grid-cols-4 gap-1.5"></div>
+            </div>
             <div class="relative flex items-center">
                 <input type="number" id="depth" step="0.01" placeholder="0.00" 
                        class="w-full bg-gray-50 border-2 border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl py-3.5 px-4 text-2xl font-bold text-gray-800 transition-all text-right pr-12 focus:outline-none">
                 <span class="absolute right-4 text-lg font-bold text-gray-400">m</span>
             </div>
+            <div id="judgeLive" class="text-center text-sm font-bold min-h-[20px]"></div>
         </section>
 
 <!-- 7. 하단 고정 메인 액션 버튼 (CTA) -->
@@ -229,8 +234,38 @@
         </section>
 
         <section class="bg-white rounded-xl border border-gray-200/80 shadow-sm divide-y divide-gray-100">
+          <h3 class="px-4 pt-3 pb-2 text-xs font-bold text-gray-400 tracking-wider">심도 판정 기준</h3>
+          <div class="px-4 py-3 space-y-2">
+            <div class="text-xs text-gray-500">위치별로 <b>입력값 이하이면 미달</b>로 판정합니다. 비워두면 판정하지 않습니다.</div>
+            <div id="judgeLimitRows" class="space-y-2"></div>
+          </div>
+          <div class="flex items-center justify-between px-4 py-3 gap-3">
+            <div><div class="text-sm font-semibold text-gray-800">주의 범위</div><div class="text-xs text-gray-500">기준을 겨우 넘는 지점을 노란색으로 표시</div></div>
+            <select id="judgeCaution" class="border border-gray-300 rounded-lg px-2 py-1.5 bg-white text-gray-700 text-sm font-semibold">
+              <option value="0">사용 안 함</option>
+              <option value="0.05">+0.05m 이내</option>
+              <option value="0.1">+0.1m 이내</option>
+              <option value="0.2">+0.2m 이내</option>
+            </select>
+          </div>
+          <div class="px-4 py-3 space-y-2">
+            <div class="flex items-center justify-between gap-3">
+              <div><div class="text-sm font-semibold text-gray-800">측정값 기준</div><div class="text-xs text-gray-500">탐지기가 관 중심까지 깊이를 보여주면 '관 중심' 선택</div></div>
+              <select id="judgeRef" class="border border-gray-300 rounded-lg px-2 py-1.5 bg-white text-gray-700 text-sm font-semibold">
+                <option value="top">관 상단</option>
+                <option value="center">관 중심</option>
+              </select>
+            </div>
+            <div id="judgeOdRow" class="flex items-center justify-between gap-3" style="display:none">
+              <div class="text-xs text-gray-500">관 외경 (판정 시 반지름만큼 빼고 계산)</div>
+              <div class="flex items-center gap-1"><input id="judgeOd" type="number" inputmode="numeric" class="w-20 border border-gray-300 rounded-lg px-2 py-1.5 text-right text-sm font-semibold"><span class="text-sm text-gray-500">mm</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="bg-white rounded-xl border border-gray-200/80 shadow-sm divide-y divide-gray-100">
           <h3 class="px-4 pt-3 pb-2 text-xs font-bold text-gray-400 tracking-wider">앱 정보</h3>
-          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V0.7</span></div>
+          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V0.8</span></div>
           <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">저장된 기록</span><span class="font-semibold text-gray-800" id="settingsRecordCount">0건</span></div>
         </section>
 
@@ -270,6 +305,32 @@ const BACKUP_TIME_KEY='depth_backup_time';
 const BACKUP_REMIND_KEY='depth_backup_remind';
 function backupRemindEvery(){ const v=localStorage.getItem(BACKUP_REMIND_KEY); return v===null?10:Number(v); } // 0 = 끄기
 
+// ── 위치 구분 / 심도 판정 ──
+const LOCS=['차도','보도','이면도로','기타'];
+const LOC_KEY='depth_loc';
+const JUDGE_KEY='depth_judge_cfg';
+function judgeCfg(){
+  let c={};
+  try{ c=JSON.parse(localStorage.getItem(JUDGE_KEY)||'{}'); }catch(e){}
+  return {limits:Object.assign({'차도':0.8},c.limits||{}), caution:Number(c.caution||0), ref:c.ref||'top', od:Number(c.od||0)};
+}
+function saveJudgeCfg(c){ localStorage.setItem(JUDGE_KEY,JSON.stringify(c)); }
+function currentLoc(){ return localStorage.getItem(LOC_KEY)||''; }
+// 반환: {result:'적합'|'주의'|'미달'|'', limit, eff}
+function judgeDepth(depth,loc){
+  const c=judgeCfg();
+  const lim=c.limits[loc];
+  const d=parseFloat(depth);
+  if(!loc || lim===undefined || lim===null || lim==='' || isNaN(Number(lim)) || isNaN(d)) return {result:'',limit:'',eff:isNaN(d)?'':d};
+  const limit=Number(lim);
+  const eff=Math.round((d-(c.ref==='center'&&c.od>0?c.od/2000:0))*1000)/1000; // 관 중심 측정이면 반지름만큼 뺌
+  let result='적합';
+  if(eff<=limit+1e-9) result='미달';
+  else if(c.caution>0 && eff<=limit+c.caution+1e-9) result='주의';
+  return {result,limit,eff};
+}
+const JUDGE_COLOR={'적합':'#16a34a','주의':'#ca8a04','미달':'#dc2626'};
+
 function esc(v){
   return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -291,7 +352,8 @@ function refreshStats(){
   const nums=today.map(x=>Number(x.depth)).filter(x=>!isNaN(x));
   const st=(id,html)=>{const e=document.getElementById(id); if(e) e.innerHTML=html;};
   st('statCount',`${nums.length} <span class="text-xs font-normal text-gray-500">건</span>`);
-  st('statTotal',`전체 ${arr.length}건`);
+  const fails=today.filter(r=>r.judge==='미달').length;
+  st('statTotal',`전체 ${arr.length}건`+(fails?` · <b style="color:#dc2626">미달 ${fails}</b>`:''));
   if(nums.length){
     st('statAvg',`${(nums.reduce((a,b)=>a+b,0)/nums.length).toFixed(2)}<span class="text-xs font-normal text-blue-500">m</span>`);
     st('statMaxMin',`${Math.max(...nums).toFixed(2)} / ${Math.min(...nums).toFixed(2)}`);
@@ -319,12 +381,14 @@ function refreshStats(){
     <span class="text-xs text-gray-500">${esc(r.time)}</span>
     ${r.accuracy?`<span class="text-xs font-semibold" style="color:${accN<=3?'#16a34a':accN<=5?'#2563eb':'#ca8a04'}">±${esc(r.accuracy)}m</span>`:''}
     ${r.corrected?'<span class="text-xs font-semibold text-purple-600">지도보정</span>':''}
+    ${r.loc?`<span class="text-xs font-semibold bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">${esc(r.loc)}</span>`:''}
+    ${r.judge?`<span class="text-xs font-bold px-1.5 py-0.5 rounded" style="background:${JUDGE_COLOR[r.judge]}1a;color:${JUDGE_COLOR[r.judge]}">${esc(r.judge)}</span>`:''}
     ${r.dist!=null&&r.dist!==''?`<span class="text-xs text-gray-500">↔ ${esc(r.dist)}m</span>`:''}
   </div>
   <div class="text-sm font-medium text-gray-800 break-all">${r.manageNo?'['+esc(r.manageNo)+'] ':''}${esc(r.address)||'주소 없음'}</div>
 </div>
 <div class="text-right whitespace-nowrap">
-  <span class="text-3xl font-black text-gray-900">${Number(r.depth).toFixed(2)}</span><span class="text-base font-bold"> m</span>
+  <span class="text-3xl font-black" style="color:${r.judge==='미달'?'#dc2626':'#111827'}">${Number(r.depth).toFixed(2)}</span><span class="text-base font-bold"> m</span>
   <div class="text-[11px] text-blue-500 mt-0.5"><i class="fa-solid fa-pen"></i> 수정</div>
 </div>
 </div>`;
@@ -384,6 +448,10 @@ document.addEventListener('DOMContentLoaded',()=>{
        if(!confirm(`입력하신 심도(${v}m)가 비정상적으로 큰 값입니다. 계속 저장하시겠습니까?`)) return;
      }
 
+     const loc=currentLoc();
+     if(!loc && !confirm('위치 구분(차도/보도 등)이 선택되지 않았습니다. 그대로 저장하시겠습니까?')) return;
+     const jd=judgeDepth(v,loc);
+
      const manageNo=document.getElementById('manageNo')?.value?.trim()||'';
      if(!manageNo){
        if(!confirm('관리번호가 입력되지 않았습니다. 관리번호 없이 저장하시겠습니까?')) return;
@@ -394,11 +462,13 @@ document.addEventListener('DOMContentLoaded',()=>{
      const addr=currentAddr; // 도로명 → 없으면 지번 (안내 문구는 저장하지 않음)
      const now=new Date();
      const time=`${now.getFullYear()}. ${String(now.getMonth()+1).padStart(2,'0')}. ${String(now.getDate()).padStart(2,'0')}. ${now.getHours()<12?'오전':'오후'} ${String((now.getHours()%12)||12).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-     arr.push({manageNo,depth:v,time:time,address:addr,latitude:currentLat,longitude:currentLng,accuracy:currentAcc,samples:currentSamples,dist:currentDist,corrected:currentCorrected,sats:currentSats,src:gpsSource,user:localStorage.getItem('depth_user_name')||'김태호'});
+     arr.push({manageNo,depth:v,time:time,address:addr,latitude:currentLat,longitude:currentLng,accuracy:currentAcc,samples:currentSamples,dist:currentDist,corrected:currentCorrected,sats:currentSats,src:gpsSource,user:localStorage.getItem('depth_user_name')||'김태호',loc,judge:jd.result,limit:jd.limit});
      keepAwake();
      saveRecords(arr);
      refreshStats();
-     showToast('저장되었습니다.','success');
+     if(jd.result==='미달') showToast(`저장됨 · 심도 미달 (${loc} 기준 ${jd.limit}m 이하)`,'error');
+     else showToast('저장되었습니다.','success');
+     renderJudgeLive();
      input.value='';
      // 저장 후 좌표 초기화 → 다음 지점에서 반드시 새로 측정
      resetGpsFix();
@@ -474,7 +544,7 @@ document.addEventListener('DOMContentLoaded',()=>{
    if(!data.length){showToast('내보낼 데이터가 없습니다.','warn');return;}
    const num=v=>{const n=parseFloat(v); return isNaN(n)?'':n;};
    const curUser=localStorage.getItem('depth_user_name')||'김태호';
-   const rows=data.map((r,i)=>({번호:i+1,측정자:r.user||curUser,관리번호:r.manageNo||'',주소:r.address||'',심도_m:num(r.depth),측정시간:r.time,
+   const rows=data.map((r,i)=>({번호:i+1,측정자:r.user||curUser,관리번호:r.manageNo||'',주소:r.address||'',위치구분:r.loc||'',심도_m:num(r.depth),판정:r.judge||'',기준_m:num(r.limit),측정시간:r.time,
      위도:num(r.latitude),경도:num(r.longitude),GPS정확도_m:num(r.accuracy),GPS샘플수:num(r.samples),
      직전거리_m:num(r.dist),위치보정:r.corrected?'지도보정':'',사용위성수:num(r.sats),측위방식:r.src==='chip'?'GPS칩':r.src==='web'?'웹':''}));
    const ws=XLSX.utils.json_to_sheet(rows);
@@ -483,6 +553,8 @@ document.addEventListener('DOMContentLoaded',()=>{
    const line={style:'thin',color:{rgb:'000000'}};
    const border={top:line,bottom:line,left:line,right:line};
    const font={name:'맑은 고딕',sz:11};
+   const heads=Object.keys(rows[0]);
+   const colLat=heads.indexOf('위도'), colLng=heads.indexOf('경도'), colDepth=heads.indexOf('심도_m'), colJudge=heads.indexOf('판정');
    for(let R=0;R<=range.e.r;R++){
      for(let C=0;C<=range.e.c;C++){
        const ref=XLSX.utils.encode_cell({r:R,c:C});
@@ -493,10 +565,17 @@ document.addEventListener('DOMContentLoaded',()=>{
             alignment:{horizontal:'center',vertical:'center'},border}
          : {font,alignment:{horizontal:'center',vertical:'center'},border};
        // 위도·경도 소수점 7자리
-       if(R>0 && (C===6||C===7) && c.t==='n') c.z='0.0000000';
+       if(R>0 && (C===colLat||C===colLng) && c.t==='n') c.z='0.0000000';
+       // 미달 행: 심도·판정 빨간 굵은 글씨 + 연한 빨강 바탕
+       if(R>0 && rows[R-1].판정==='미달' && (C===colDepth||C===colJudge)){
+         c.s={...c.s,font:{...font,bold:true,color:{rgb:'DC2626'}},fill:{patternType:'solid',fgColor:{rgb:'FDE2E2'}}};
+       }
+       if(R>0 && rows[R-1].판정==='주의' && C===colJudge){
+         c.s={...c.s,font:{...font,bold:true,color:{rgb:'B45309'}},fill:{patternType:'solid',fgColor:{rgb:'FEF3C7'}}};
+       }
      }
    }
-   ws['!cols']=[{wch:5},{wch:9},{wch:12},{wch:30},{wch:8},{wch:26},{wch:11},{wch:12},{wch:11},{wch:9},{wch:10},{wch:12},{wch:9},{wch:9}];
+   ws['!cols']=[{wch:5},{wch:9},{wch:12},{wch:30},{wch:9},{wch:8},{wch:7},{wch:7},{wch:26},{wch:11},{wch:12},{wch:11},{wch:9},{wch:10},{wch:12},{wch:9},{wch:9}];
    ws['!rows']=[{hpt:20}];
    const wb=XLSX.utils.book_new();
    XLSX.utils.book_append_sheet(wb,ws,'심도측정');
@@ -517,8 +596,9 @@ document.addEventListener('DOMContentLoaded',()=>{
 
  backupBtn.onclick=()=>{
    const data={
-     version:'V0.7',
+     version:'V0.8',
      user:localStorage.getItem('depth_user_name')||'',
+     judge:localStorage.getItem(JUDGE_KEY)||'',
      records:JSON.parse(localStorage.getItem('depth_records_v35')||'[]')
    };
    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
@@ -569,6 +649,7 @@ document.addEventListener('DOMContentLoaded',()=>{
        localStorage.setItem('depth_records_v35',JSON.stringify(validRecords));
        localStorage.setItem(BACKUP_COUNT_KEY,String(validRecords.length)); // 복원한 기록은 이미 백업 파일에 있음
        if(obj.user) localStorage.setItem('depth_user_name',obj.user);
+       if(obj.judge) localStorage.setItem(JUDGE_KEY,obj.judge);
        showToast('복원이 완료되었습니다. 화면을 새로고침합니다.','success');
        setTimeout(()=>location.reload(),600);
      }catch{
@@ -739,7 +820,7 @@ async function reverseGeocode(lat,lng){
 
 <script>
 /*
- * GPS 정밀 측위 로직 (V0.7)
+ * GPS 정밀 측위 로직 (V0.8)
  * 1) 예열: 앱이 열려 있는 동안 GPS를 계속 수신해 최근 샘플을 버퍼에 보관
  *    → 측정 버튼을 누르면 이미 쌓인 샘플을 활용해 보통 1~3초 안에 확정
  * 2) 평균: 이동 중 샘플·튐값 제거 후 정확도 가중평균
@@ -1098,6 +1179,9 @@ document.addEventListener('DOMContentLoaded',()=>{
     <label class="block text-xs font-bold text-gray-500">관리번호
       <input id="editManage" type="text" class="mt-1 w-full bg-gray-50 border-2 border-gray-200 rounded-xl py-2.5 px-3 text-base font-bold text-gray-800 focus:outline-none focus:border-blue-500">
     </label>
+    <label class="block text-xs font-bold text-gray-500">위치 구분
+      <select id="editLoc" class="mt-1 w-full bg-gray-50 border-2 border-gray-200 rounded-xl py-2.5 px-3 text-base font-bold text-gray-800"></select>
+    </label>
     <label class="block text-xs font-bold text-gray-500">심도 (m)
       <input id="editDepth" type="number" step="0.01" inputmode="decimal" class="mt-1 w-full bg-gray-50 border-2 border-gray-200 rounded-xl py-2.5 px-3 text-2xl font-bold text-gray-800 text-right focus:outline-none focus:border-blue-500">
     </label>
@@ -1150,6 +1234,9 @@ document.addEventListener('DOMContentLoaded',()=>{
     document.getElementById('editInfo').textContent=`${r.time||''} · ${r.address||'주소 없음'}`;
     mManage.value=r.manageNo||'';
     mDepth.value=r.depth;
+    const el=document.getElementById('editLoc');
+    el.innerHTML='<option value="">선택 안 함</option>'+LOCS.map(l=>`<option>${l}</option>`).join('');
+    el.value=r.loc||'';
     modal.style.display='flex';
   }
   document.addEventListener('click',e=>{
@@ -1165,6 +1252,9 @@ document.addEventListener('DOMContentLoaded',()=>{
     const arr=loadRecords(); if(!arr[editIdx]) return close();
     arr[editIdx].depth=v;
     arr[editIdx].manageNo=mManage.value.trim();
+    arr[editIdx].loc=document.getElementById('editLoc').value;
+    const jd=judgeDepth(v,arr[editIdx].loc);
+    arr[editIdx].judge=jd.result; arr[editIdx].limit=jd.limit;
     arr[editIdx].edited=true;
     saveRecords(arr); close(); refreshStats();
     showToast('수정되었습니다.','success');
@@ -1258,6 +1348,69 @@ document.addEventListener('DOMContentLoaded',()=>{
     document.getElementById('gpsCoord').textContent=`${currentLat}, ${currentLng} (보정)`;
     showToast('보정한 위치로 확정했습니다.','success');
   };
+});
+</script>
+
+<script>
+/* ── 위치 구분 버튼 / 실시간 판정 / 판정 설정 ── */
+function renderLocBtns(){
+  const box=document.getElementById('locBtns'); if(!box) return;
+  const cur=currentLoc();
+  box.innerHTML=LOCS.map(l=>`<button type="button" data-loc="${l}" class="py-2.5 rounded-lg text-sm font-bold border ${l===cur?'bg-blue-600 text-white border-blue-600':'bg-white text-gray-600 border-gray-300'}">${l}</button>`).join('');
+}
+function renderJudgeLive(){
+  const el=document.getElementById('judgeLive'); if(!el) return;
+  const v=document.getElementById('depth').value;
+  const loc=currentLoc();
+  const c=judgeCfg();
+  const lim=c.limits[loc];
+  if(!loc){ el.innerHTML='<span style="color:#94a3b8">위치 구분을 선택하세요</span>'; return; }
+  if(lim===undefined||lim===''){ el.innerHTML=`<span style="color:#94a3b8">${loc}: 판정 기준 없음</span>`; return; }
+  if(v===''){ el.innerHTML=`<span style="color:#64748b">${loc} 기준: ${lim}m 이하 미달</span>`; return; }
+  const jd=judgeDepth(v,loc);
+  const icon={'적합':'fa-circle-check','주의':'fa-triangle-exclamation','미달':'fa-circle-xmark'}[jd.result];
+  const effTxt=(c.ref==='center'&&c.od>0)?` · 관 상단 ${jd.eff.toFixed(2)}m`:'';
+  el.innerHTML=`<span style="color:${JUDGE_COLOR[jd.result]}"><i class="fa-solid ${icon}"></i> ${jd.result} (기준 ${jd.limit}m 이하 미달${effTxt})</span>`;
+}
+function renderJudgeSettings(){
+  const c=judgeCfg();
+  const rows=document.getElementById('judgeLimitRows'); if(!rows) return;
+  rows.innerHTML=LOCS.map(l=>`<div class="flex items-center justify-between gap-3">
+    <span class="text-sm font-semibold text-gray-800 w-20">${l}</span>
+    <div class="flex items-center gap-1 text-sm text-gray-500"><input data-lim="${l}" type="number" step="0.01" inputmode="decimal" placeholder="판정 안 함" value="${c.limits[l]===undefined?'':c.limits[l]}" class="w-24 border border-gray-300 rounded-lg px-2 py-1.5 text-right font-semibold text-gray-800"> m 이하 미달</div>
+  </div>`).join('');
+  document.getElementById('judgeCaution').value=String(c.caution||0);
+  document.getElementById('judgeRef').value=c.ref;
+  document.getElementById('judgeOd').value=c.od||'';
+  document.getElementById('judgeOdRow').style.display=c.ref==='center'?'flex':'none';
+}
+function updateJudgeCfgFromUI(){
+  const c=judgeCfg();
+  const limits={};
+  document.querySelectorAll('#judgeLimitRows [data-lim]').forEach(i=>{
+    const v=i.value.trim();
+    limits[i.dataset.lim]= v===''||isNaN(parseFloat(v)) ? '' : parseFloat(v);
+  });
+  c.limits=limits;
+  c.caution=Number(document.getElementById('judgeCaution').value);
+  c.ref=document.getElementById('judgeRef').value;
+  c.od=Number(document.getElementById('judgeOd').value)||0;
+  saveJudgeCfg(c);
+  document.getElementById('judgeOdRow').style.display=c.ref==='center'?'flex':'none';
+  renderJudgeLive();
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  renderLocBtns(); renderJudgeLive(); renderJudgeSettings();
+  document.getElementById('locBtns').addEventListener('click',e=>{
+    const b=e.target.closest('[data-loc]'); if(!b) return;
+    const l=b.dataset.loc;
+    localStorage.setItem(LOC_KEY, currentLoc()===l?'':l); // 같은 버튼 다시 누르면 해제
+    renderLocBtns(); renderJudgeLive();
+  });
+  document.getElementById('depth').addEventListener('input',renderJudgeLive);
+  const ss=document.getElementById('settingsModal');
+  ss.addEventListener('change',e=>{ if(e.target.closest('#judgeLimitRows')||['judgeCaution','judgeRef','judgeOd'].includes(e.target.id)) updateJudgeCfgFromUI(); });
+  ss.addEventListener('input',e=>{ if(e.target.closest('#judgeLimitRows')||e.target.id==='judgeOd') updateJudgeCfgFromUI(); });
 });
 </script>
 

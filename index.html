@@ -15,6 +15,10 @@
         input, #roadAddr, #jibunAddr, #gpsCoord, .record-item {
             user-select: text; -webkit-user-select: text;
         }
+        /* 최근 저장 이력 접기 */
+        #historySec.collapsed .record-item, #historySec.collapsed #selDeleteBtn { display:none; }
+        #historySec #histChevron { transition: transform .2s ease; }
+        #historySec.collapsed #histChevron { transform: rotate(-90deg); }
     </style>
 <!-- 서식(머리글 색·테두리) 지원 엑셀 도구, 앱에 내장해 오프라인에서도 동작 -->
 <script src="./xlsx-style.min.js"></script>
@@ -140,13 +144,18 @@
         </section>
 
         <!-- 5. 모바일 최적화 카드형 리스트 -->
-        <section class="space-y-2">
-            <div class="flex justify-between items-center px-1">
+        <section id="historySec" class="space-y-2">
+            <button type="button" id="histToggle" aria-expanded="true" class="w-full flex justify-between items-center px-3 py-2.5 bg-white rounded-xl border border-gray-200/80 shadow-sm active:bg-gray-50">
                 <h2 class="text-sm font-bold text-gray-500 flex items-center gap-1.5 uppercase tracking-wider">
                     <i class="fa-solid fa-list-ul text-blue-500"></i> 최근 저장 이력
+                    <span id="histCount" class="text-xs font-bold bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full normal-case">0</span>
                 </h2>
-                <span id="lastSavedTime" class="ml-auto text-xs text-gray-400 text-right"></span>
-            </div>
+                <span class="ml-auto flex items-center gap-2">
+                    <span id="lastSavedTime" class="text-xs text-gray-400 text-right whitespace-nowrap"></span>
+                    <span id="histLabel" class="text-xs font-semibold text-blue-600">접기</span>
+                    <i id="histChevron" class="fa-solid fa-chevron-down text-gray-400 text-xs"></i>
+                </span>
+            </button>
             <div id="backupReminder" style="display:none" class="items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 text-xs">
                 <i class="fa-solid fa-triangle-exclamation"></i>
                 <span data-msg class="flex-1 font-semibold"></span>
@@ -399,9 +408,12 @@ function refreshStats(){
 </div>`;
       sec.insertBefore(d,anchor);
     }
+    const hc=document.getElementById('histCount'); if(hc) hc.textContent=arr.length;
     const lastSaved=document.getElementById('lastSavedTime');
     if(lastSaved){
-      lastSaved.textContent=arr.length?'최근 저장 : '+String(arr[arr.length-1].time).split('오전')[0].split('오후')[0].trim():'';
+      // 헤더가 한 줄에 들어가도록 짧게: '10.29 저장'
+      const m=arr.length?String(arr[arr.length-1].time).match(/\d{4}\.\s*(\d{1,2})\.\s*(\d{1,2})/):null;
+      lastSaved.textContent=m?`${Number(m[1])}.${m[2]} 저장`:'';
     }
   }
   updateBackupReminder();
@@ -1362,6 +1374,25 @@ document.addEventListener('DOMContentLoaded',()=>{
     document.getElementById('gpsCoord').textContent=`${currentLat}, ${currentLng} (보정)`;
     showToast('보정한 위치로 확정했습니다.','success');
   };
+});
+</script>
+
+<script>
+/* ── 최근 저장 이력 펼치기/접기 (상태 기억) ── */
+const HIST_KEY='depth_hist_collapsed';
+function applyHistState(collapsed){
+  const sec=document.getElementById('historySec'); if(!sec) return;
+  sec.classList.toggle('collapsed',collapsed);
+  document.getElementById('histLabel').textContent=collapsed?'펼치기':'접기';
+  document.getElementById('histToggle').setAttribute('aria-expanded',String(!collapsed));
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  applyHistState(localStorage.getItem(HIST_KEY)==='1');
+  document.getElementById('histToggle').addEventListener('click',()=>{
+    const c=!document.getElementById('historySec').classList.contains('collapsed');
+    localStorage.setItem(HIST_KEY,c?'1':'0');
+    applyHistState(c);
+  });
 });
 </script>
 

@@ -486,7 +486,7 @@ document.addEventListener('DOMContentLoaded',()=>{
      refreshStats();
      if(jd.result==='미달') showToast(`저장됨 · 심도 미달 (${loc} 기준 ${jd.limit}m 이하)`,'error');
      else showToast('저장되었습니다.','success');
-     renderJudgeLive();
+     renderJudgeLive(); closeEtc();
      input.value='';
      // 저장 후 좌표 초기화 → 다음 지점에서 반드시 새로 측정
      resetGpsFix();
@@ -1398,13 +1398,20 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 <script>
 /* ── 위치 구분 버튼 / 실시간 판정 / 판정 설정 ── */
+let etcOpen=false; // 기타 입력칸: 평소 숨김, 기타를 누를 때만 표시
+function closeEtc(){ etcOpen=false; renderLocBtns(); }
 function renderLocBtns(){
   const box=document.getElementById('locBtns'); if(!box) return;
   const cur=currentLoc();
   // 위성 수 표시와 같은 작은 알약 모양
-  box.innerHTML=LOCS.map(l=>`<button type="button" data-loc="${l}" class="px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap" style="${l===cur?'background:#2563eb;color:#fff':'background:#64748b1a;color:#64748b'}">${l}</button>`).join('');
+  const etcTxt=(localStorage.getItem(LOC_ETC_KEY)||'').trim();
+  box.innerHTML=LOCS.map(l=>{
+    // 기타에 입력한 글자가 있으면 칩에 함께 표시 (입력칸이 숨어 있어도 알 수 있게)
+    const label=(l==='기타'&&cur==='기타'&&etcTxt)?`기타·${esc(etcTxt)}`:l;
+    return `<button type="button" data-loc="${l}" class="px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap" style="${l===cur?'background:#2563eb;color:#fff':'background:#64748b1a;color:#64748b'}">${label}</button>`;
+  }).join('');
   const etc=document.getElementById('locEtc');
-  if(etc){ etc.style.display=cur==='기타'?'block':'none'; etc.value=localStorage.getItem(LOC_ETC_KEY)||''; }
+  if(etc){ etc.style.display=(cur==='기타'&&etcOpen)?'block':'none'; if(document.activeElement!==etc) etc.value=localStorage.getItem(LOC_ETC_KEY)||''; }
 }
 function renderJudgeLive(){
   const el=document.getElementById('judgeLive'); if(!el) return;
@@ -1453,13 +1460,22 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('locBtns').addEventListener('click',e=>{
     const b=e.target.closest('[data-loc]'); if(!b) return;
     const l=b.dataset.loc;
-    localStorage.setItem(LOC_KEY, currentLoc()===l?'':l); // 같은 버튼 다시 누르면 해제
+    const cur=currentLoc();
+    if(l==='기타'){
+      if(cur!=='기타'){ localStorage.setItem(LOC_KEY,'기타'); etcOpen=true; }   // 기타 선택 + 입력칸 열기
+      else if(!etcOpen){ etcOpen=true; }                                       // 이미 기타: 입력칸 다시 열어 수정
+      else { localStorage.setItem(LOC_KEY,''); etcOpen=false; }                // 열린 상태에서 또 누르면 해제
+    }else{
+      localStorage.setItem(LOC_KEY, cur===l?'':l); // 같은 버튼 다시 누르면 해제
+      etcOpen=false;
+    }
     renderLocBtns(); renderJudgeLive();
-    if(currentLoc()==='기타' && !document.getElementById('locEtc').value) document.getElementById('locEtc').focus();
+    if(etcOpen){ const i=document.getElementById('locEtc'); i.focus(); i.select&&i.select(); }
   });
-  document.getElementById('locEtc').addEventListener('input',e=>{
-    localStorage.setItem(LOC_ETC_KEY,e.target.value); renderJudgeLive();
-  });
+  const etcIn=document.getElementById('locEtc');
+  etcIn.addEventListener('input',e=>{ localStorage.setItem(LOC_ETC_KEY,e.target.value); renderJudgeLive(); });
+  etcIn.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); etcIn.blur(); } });
+  etcIn.addEventListener('blur',()=>setTimeout(()=>{ if(document.activeElement!==etcIn) closeEtc(); },150)); // 입력 끝나면 숨김
   document.getElementById('depth').addEventListener('input',renderJudgeLive);
   const ss=document.getElementById('settingsModal');
   ss.addEventListener('change',e=>{ if(e.target.closest('#judgeLimitRows')||['judgeCaution','judgeRef','judgeOd'].includes(e.target.id)) updateJudgeCfgFromUI(); });

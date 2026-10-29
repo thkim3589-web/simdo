@@ -2,13 +2,14 @@
 // - 앱 셸(정적 파일)을 캐싱해 오프라인에서도 화면이 열리도록 함
 // - 카카오 주소 API 등 외부 네트워크 요청은 캐싱하지 않고 그대로 통과시킴
 
-const CACHE_NAME = 'depth-app-cache-v0-5';
+const CACHE_NAME = 'depth-app-cache-v0-6';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.json',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './xlsx-style.min.js'
 ];
 
 // 화면·엑셀에 필요한 외부 라이브러리 (현장에서 신호가 약해도 동작하도록 미리 저장)
@@ -16,7 +17,6 @@ const CDN_FILES = [
   'https://cdn.tailwindcss.com',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/webfonts/fa-solid-900.woff2',
-  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css',
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js'
 ];

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>심도측정 시스템 V0.5 (Kakao)</title>
+    <title>심도측정 시스템 V0.6 (Kakao)</title>
     <!-- Tailwind CSS CDN 및 FontAwesome 아이콘 적용 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -16,7 +16,8 @@
             user-select: text; -webkit-user-select: text;
         }
     </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- 서식(머리글 색·테두리) 지원 엑셀 도구, 앱에 내장해 오프라인에서도 동작 -->
+<script src="./xlsx-style.min.js"></script>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2563eb">
@@ -26,7 +27,7 @@
     <!-- 1. 상단 고정 헤더 -->
     <header class="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center shadow-sm">
         <h1 class="text-lg font-bold text-blue-600 flex items-center gap-2">
-            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V0.5</span>
+            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V0.6</span>
         </h1>
         <div class="flex items-center gap-2">
             <div class="flex items-center gap-1.5 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium text-gray-700">
@@ -229,7 +230,7 @@
 
         <section class="bg-white rounded-xl border border-gray-200/80 shadow-sm divide-y divide-gray-100">
           <h3 class="px-4 pt-3 pb-2 text-xs font-bold text-gray-400 tracking-wider">앱 정보</h3>
-          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V0.5</span></div>
+          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V0.6</span></div>
           <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">저장된 기록</span><span class="font-semibold text-gray-800" id="settingsRecordCount">0건</span></div>
         </section>
 
@@ -476,10 +477,26 @@ document.addEventListener('DOMContentLoaded',()=>{
      위도:num(r.latitude),경도:num(r.longitude),GPS정확도_m:num(r.accuracy),GPS샘플수:num(r.samples),
      직전거리_m:num(r.dist),위치보정:r.corrected?'지도보정':'',사용위성수:num(r.sats),측위방식:r.src==='chip'?'GPS칩':r.src==='web'?'웹':''}));
    const ws=XLSX.utils.json_to_sheet(rows);
-   // 위도·경도는 소수점 7자리까지 보이도록 표시 형식 지정
+   // ── 표 양식: 검은 머리글(흰 굵은 글씨), 전체 가는 테두리, 가운데 정렬 ──
    const range=XLSX.utils.decode_range(ws['!ref']);
-   for(let R=1;R<=range.e.r;R++){ [5,6].forEach(C=>{const c=ws[XLSX.utils.encode_cell({r:R,c:C})]; if(c&&c.t==='n') c.z='0.0000000';}); }
-   ws['!cols']=[{wch:5},{wch:14},{wch:32},{wch:7},{wch:24},{wch:12},{wch:13},{wch:10},{wch:9},{wch:9},{wch:8},{wch:9},{wch:8}];
+   const line={style:'thin',color:{rgb:'000000'}};
+   const border={top:line,bottom:line,left:line,right:line};
+   const font={name:'맑은 고딕',sz:11};
+   for(let R=0;R<=range.e.r;R++){
+     for(let C=0;C<=range.e.c;C++){
+       const ref=XLSX.utils.encode_cell({r:R,c:C});
+       if(!ws[ref]) ws[ref]={t:'s',v:''};
+       const c=ws[ref];
+       c.s = R===0
+         ? {font:{...font,bold:true,color:{rgb:'FFFFFF'}},fill:{patternType:'solid',fgColor:{rgb:'000000'}},
+            alignment:{horizontal:'center',vertical:'center'},border}
+         : {font,alignment:{horizontal:'center',vertical:'center'},border};
+       // 위도·경도 소수점 7자리
+       if(R>0 && (C===5||C===6) && c.t==='n') c.z='0.0000000';
+     }
+   }
+   ws['!cols']=[{wch:5},{wch:12},{wch:30},{wch:8},{wch:26},{wch:11},{wch:12},{wch:11},{wch:9},{wch:10},{wch:12},{wch:9},{wch:9}];
+   ws['!rows']=[{hpt:20}];
    const wb=XLSX.utils.book_new();
    XLSX.utils.book_append_sheet(wb,ws,'심도측정');
    const manageNo = (data[0]?.manageNo||'').replace(/[\\/:*?"<>|]/g,'_');
@@ -499,7 +516,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 
  backupBtn.onclick=()=>{
    const data={
-     version:'V0.5',
+     version:'V0.6',
      user:localStorage.getItem('depth_user_name')||'',
      records:JSON.parse(localStorage.getItem('depth_records_v35')||'[]')
    };
@@ -721,7 +738,7 @@ async function reverseGeocode(lat,lng){
 
 <script>
 /*
- * GPS 정밀 측위 로직 (V0.5)
+ * GPS 정밀 측위 로직 (V0.6)
  * 1) 예열: 앱이 열려 있는 동안 GPS를 계속 수신해 최근 샘플을 버퍼에 보관
  *    → 측정 버튼을 누르면 이미 쌓인 샘플을 활용해 보통 1~3초 안에 확정
  * 2) 평균: 이동 중 샘플·튐값 제거 후 정확도 가중평균

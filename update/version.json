@@ -1,18 +1,18 @@
 {
  "web": {
-  "code": 105,
-  "name": "V1.5",
-  "file": "update/web-105.zip",
-  "sha256": "f4311a92ea4da9f193120b9b8541794aa94d787ec5d08d839696ce726bb776b9",
-  "size": 851873
+  "code": 106,
+  "name": "V1.6",
+  "file": "update/web-106.zip",
+  "sha256": "48f53f4e58c514a20a4052ec58dce6a490a3e58ba99418f868dcbe0c1c0179b2",
+  "size": 856076
  },
  "apk": {
-  "code": 7,
-  "name": "1.1",
+  "code": 8,
+  "name": "1.2",
   "file": "simdo.apk",
-  "sha256": "4c00e06bab24dacf8b58e4c7c1daf51a010c823ff457f9ac624622d882ddc46d",
-  "size": 880067
+  "sha256": "3ee61b356743a005222e5a583c4dd00c18a2a42cb21f6bcddb9444c796aafa3c",
+  "size": 892415
  },
- "notes": "측정 간격 안내, 튄 지점 경고, 시설 찾기 경로선 표시",
+ "notes": "GPS 정밀도 향상: 정밀 측정, 기준점 보정, GNSS 전체 추적, GPS 진단",
  "date": "2026-10-30"
 }

@@ -1,10 +1,10 @@
 {
  "web": {
-  "code": 100,
-  "name": "V1.0",
-  "file": "update/web-100.zip",
-  "sha256": "5c82b03f1fbc87cab600a7152a454fb5583b4cca420cbadee7a227a80a6229f3",
-  "size": 833494
+  "code": 101,
+  "name": "V1.1",
+  "file": "update/web-101.zip",
+  "sha256": "9350ea7304d904cb5a022f0983bd0900c139f173b3ca24f6bf5127d937d4727f",
+  "size": 839515
  },
  "apk": {
   "code": 6,
@@ -13,6 +13,6 @@
   "sha256": "fa4f079159fe11bdecd4c91907123bbd9652f10969bfc07637df0051e66fda46",
   "size": 864313
  },
- "notes": "앱 안에서 업데이트 기능 추가",
- "date": "2026-10-29"
+ "notes": "시설 찾기 페이지 추가 (상단 지도 버튼)",
+ "date": "2026-10-30"
 }

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>시설 찾기 · 심도측정</title>
+<meta name="theme-color" content="#2563eb">
+<link rel="stylesheet" href="./lib/fontawesome/css/fontawesome.min.css">
+<link rel="stylesheet" href="./lib/fontawesome/css/solid.min.css">
+<link rel="stylesheet" href="./lib/leaflet/leaflet.css">
+<style>
+  :root{ --blue:#2563eb; --ink:#1f2937; --sub:#6b7280; --line:#e5e7eb; --bg:#f9fafb; --red:#ef4444; --purple:#7c3aed; }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; height:100%; font-family:-apple-system,"Malgun Gothic","맑은 고딕",system-ui,sans-serif; color:var(--ink); background:var(--bg); }
+  body{ display:flex; flex-direction:column; }
+  header{ background:#fff; border-bottom:1px solid var(--line); padding:10px 12px; display:flex; align-items:center; gap:8px; box-shadow:0 1px 2px rgba(0,0,0,.04); z-index:1000; }
+  .icon-btn{ width:38px; height:38px; flex:0 0 38px; border:0; border-radius:999px; background:#f3f4f6; color:#4b5563; font-size:16px; display:flex; align-items:center; justify-content:center; }
+  header h1{ font-size:17px; margin:0; color:var(--blue); font-weight:800; white-space:nowrap; }
+  .search{ padding:10px 12px; background:#fff; border-bottom:1px solid var(--line); z-index:1000; }
+  .search form{ display:flex; gap:6px; }
+  .search input{ flex:1; min-width:0; border:2px solid var(--line); background:var(--bg); border-radius:12px; padding:11px 12px; font-size:16px; font-weight:700; color:var(--ink); outline:none; }
+  .search input:focus{ border-color:var(--blue); background:#fff; }
+  .search button{ border:0; background:var(--blue); color:#fff; font-weight:800; font-size:15px; border-radius:12px; padding:0 16px; white-space:nowrap; }
+  .scope{ display:flex; gap:6px; margin-top:8px; font-size:12px; font-weight:700; }
+  .scope label{ display:flex; align-items:center; gap:4px; padding:4px 10px; border-radius:999px; background:#64748b1a; color:#64748b; }
+  .scope input{ margin:0; accent-color:var(--blue); }
+  #mapWrap{ position:relative; flex:1; min-height:200px; }
+  #map{ position:absolute; inset:0; background:#e5e7eb; }
+  .map-ctl{ position:absolute; right:10px; z-index:900; display:flex; flex-direction:column; gap:6px; }
+  .map-ctl.top{ top:10px; } .map-ctl.bottom{ bottom:12px; }
+  .chip{ border:0; padding:6px 11px; border-radius:999px; font-size:12px; font-weight:700; background:#fff; color:#374151; box-shadow:0 1px 4px rgba(0,0,0,.2); }
+  .chip.on{ background:#1f2937; color:#fff; }
+  .round{ width:42px; height:42px; border:0; border-radius:999px; background:#fff; color:var(--blue); font-size:17px; box-shadow:0 1px 5px rgba(0,0,0,.25); }
+  #panel{ background:#fff; border-top:1px solid var(--line); max-height:42vh; display:flex; flex-direction:column; z-index:1000; padding-bottom:env(safe-area-inset-bottom); }
+  #panelHead{ display:flex; align-items:center; justify-content:space-between; padding:10px 14px; font-size:13px; font-weight:800; color:var(--sub); border:0; background:#fff; width:100%; }
+  #panelHead .cnt{ background:#eff6ff; color:var(--blue); border-radius:999px; padding:1px 8px; margin-left:4px; }
+  #panel.collapsed #list{ display:none; }
+  #panel.collapsed #chev{ transform:rotate(180deg); }
+  #list{ overflow-y:auto; padding:0 10px 10px; }
+  .grp{ font-size:11px; font-weight:800; color:#9ca3af; margin:8px 4px 4px; }
+  .item{ display:flex; gap:10px; align-items:flex-start; width:100%; text-align:left; border:1px solid var(--line); background:#fff; border-radius:12px; padding:10px 12px; margin-bottom:6px; }
+  .item.active{ border-color:var(--blue); background:#eff6ff; }
+  .badge{ flex:0 0 auto; font-size:11px; font-weight:800; border-radius:6px; padding:3px 6px; margin-top:1px; }
+  .b-mine{ background:#fee2e2; color:#dc2626; } .b-kakao{ background:#ede9fe; color:var(--purple); }
+  .item .nm{ font-size:15px; font-weight:800; color:var(--ink); }
+  .item .ad{ font-size:12px; color:var(--sub); margin-top:2px; word-break:break-all; }
+  .item .meta{ font-size:11px; color:#9ca3af; margin-top:2px; }
+  .empty{ text-align:center; color:#9ca3af; font-size:13px; padding:16px 8px; line-height:1.6; }
+  .lbl{ background:#fff; border:2px solid var(--blue); color:var(--ink); font-weight:800; font-size:12px; padding:2px 7px; border-radius:8px; white-space:nowrap; box-shadow:0 1px 3px rgba(0,0,0,.25); }
+  .lbl.kakao{ border-color:var(--purple); }
+  .leaflet-tooltip.lbl:before{ display:none; }
+  #toast{ position:fixed; left:50%; bottom:46vh; transform:translateX(-50%); background:#1f2937; color:#fff; font-size:13px; font-weight:700; padding:9px 15px; border-radius:999px; z-index:5000; opacity:0; transition:opacity .2s; pointer-events:none; max-width:88%; text-align:center; }
+</style>
+</head>
+<body>
+<header>
+  <button type="button" class="icon-btn" id="backBtn" aria-label="뒤로"><i class="fa-solid fa-arrow-left"></i></button>
+  <h1><i class="fa-solid fa-map-location-dot"></i> 시설 찾기</h1>
+</header>
+
+<div class="search">
+  <form id="searchForm" autocomplete="off">
+    <input id="q" type="search" enterkeyhint="search" placeholder="시설명 입력 (예: 논공통합국, 달서CD1776)">
+    <button type="submit"><i class="fa-solid fa-magnifying-glass"></i> 검색</button>
+  </form>
+  <div class="scope">
+    <label><input type="checkbox" id="useMine" checked> 내 측정 기록</label>
+    <label><input type="checkbox" id="useKakao" checked> 카카오 장소</label>
+  </div>
+</div>
+
+<div id="mapWrap">
+  <div id="map"></div>
+  <div class="map-ctl top">
+    <button type="button" class="chip on" data-layer="map">일반</button>
+    <button type="button" class="chip" data-layer="sat">위성</button>
+  </div>
+  <div class="map-ctl bottom">
+    <button type="button" class="round" id="myLocBtn" aria-label="내 위치"><i class="fa-solid fa-location-crosshairs"></i></button>
+  </div>
+</div>
+
+<div id="panel">
+  <button type="button" id="panelHead">
+    <span>검색 결과<span class="cnt" id="cnt">0</span></span>
+    <i class="fa-solid fa-chevron-down" id="chev"></i>
+  </button>
+  <div id="list"><div class="empty">시설명을 입력하고 검색하세요.<br>내 측정 기록의 관리번호·주소와 카카오 장소를 함께 찾습니다.</div></div>
+</div>
+<div id="toast"></div>
+
+<script src="./lib/leaflet/leaflet.js"></script>
+<script>
+// 카카오 REST 키 (index.html과 동일 — 카카오 콘솔에서 허용 도메인 제한 권장)
+const KAKAO_API_KEY='eaa5300f4046bfac8ce0355b1bd8cd88';
+const REC_KEY='depth_records_v35';
+const LAST_Q_KEY='facility_last_query';
+
+const $=id=>document.getElementById(id);
+const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(m){ const t=$('toast'); t.textContent=m; t.style.opacity='1'; clearTimeout(t._h); t._h=setTimeout(()=>t.style.opacity='0',2000); }
+
+// ── 지도 ──
+const map=L.map('map',{zoomControl:false,maxZoom:21}).setView([35.84,128.54],13);
+L.control.zoom({position:'bottomleft'}).addTo(map);
+const layers={
+  map:L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxNativeZoom:19,maxZoom:21,attribution:'© OpenStreetMap'}),
+  sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:19,maxZoom:21,attribution:'Esri'})
+};
+let curLayer='map';
+function setLayer(n){
+  Object.values(layers).forEach(l=>map.removeLayer(l)); layers[n].addTo(map); curLayer=n;
+  document.querySelectorAll('[data-layer]').forEach(b=>b.classList.toggle('on',b.dataset.layer===n));
+}
+document.querySelectorAll('[data-layer]').forEach(b=>b.onclick=()=>setLayer(b.dataset.layer));
+setLayer('map');
+const resultLayer=L.layerGroup().addTo(map);
+let myLoc=null, myMarker=null;
+
+// ── 내 위치 ──
+function locate(fly){
+  if(!navigator.geolocation){ toast('위치 기능을 쓸 수 없습니다'); return; }
+  navigator.geolocation.getCurrentPosition(p=>{
+    myLoc={lat:p.coords.latitude,lng:p.coords.longitude};
+    if(myMarker) map.removeLayer(myMarker);
+    myMarker=L.circleMarker([myLoc.lat,myLoc.lng],{radius:7,color:'#fff',weight:2.5,fillColor:'#2563eb',fillOpacity:1}).addTo(map).bindTooltip('내 위치');
+    if(fly) map.setView([myLoc.lat,myLoc.lng],17);
+  },()=>{ if(fly) toast('현재 위치를 가져올 수 없습니다'); },{enableHighAccuracy:true,timeout:10000,maximumAge:30000});
+}
+$('myLocBtn').onclick=()=>locate(true);
+
+// ── 내 측정 기록에서 찾기: 관리번호·주소 일치, 시설별로 묶음 ──
+function searchMine(q){
+  let recs=[]; try{ recs=JSON.parse(localStorage.getItem(REC_KEY)||'[]'); }catch(e){}
+  const k=q.replace(/\s+/g,'').toLowerCase();
+  const groups=new Map();
+  recs.forEach((r,i)=>{
+    const lat=parseFloat(r.latitude), lng=parseFloat(r.longitude);
+    if(isNaN(lat)||isNaN(lng)) return;
+    const mn=(r.manageNo||'').trim(), ad=(r.address||'').trim();
+    const hay=(mn+' '+ad).replace(/\s+/g,'').toLowerCase();
+    if(!hay.includes(k)) return;
+    const key=mn||ad;
+    if(!groups.has(key)) groups.set(key,{name:mn||'(관리번호 없음)',address:ad,points:[]});
+    groups.get(key).points.push({lat,lng,no:i+1,depth:r.depth,judge:r.judge,time:r.time});
+  });
+  return [...groups.values()].map(g=>{
+    const lat=g.points.reduce((a,p)=>a+p.lat,0)/g.points.length, lng=g.points.reduce((a,p)=>a+p.lng,0)/g.points.length;
+    return {src:'mine',name:g.name,address:g.address,lat,lng,points:g.points};
+  });
+}
+
+// ── 카카오 장소 검색 ──
+async function searchKakao(q){
+  const c=myLoc||map.getCenter();
+  const url=`https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(q)}&size=15&x=${c.lng}&y=${c.lat}`;
+  const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),8000);
+  try{
+    const r=await fetch(url,{headers:{Authorization:`KakaoAK ${KAKAO_API_KEY}`},signal:ctl.signal});
+    if(!r.ok) throw new Error(r.status===401||r.status===403?'카카오 API 인증 오류':`카카오 검색 오류 (${r.status})`);
+    const d=await r.json();
+    return (d.documents||[]).map(x=>({src:'kakao',name:x.place_name,address:x.road_address_name||x.address_name,
+      lat:parseFloat(x.y),lng:parseFloat(x.x),category:(x.category_name||'').split('>').pop().trim(),dist:x.distance?Number(x.distance):null}));
+  }finally{ clearTimeout(t); }
+}
+
+// ── 결과 표시 ──
+let results=[];
+function render(){
+  resultLayer.clearLayers();
+  $('cnt').textContent=results.length;
+  if(!results.length){ $('list').innerHTML='<div class="empty">검색 결과가 없습니다.<br>시설명을 줄이거나 다른 이름으로 찾아보세요.</div>'; return; }
+  const bounds=[];
+  results.forEach((r,i)=>{
+    if(r.src==='mine'){
+      r.points.forEach(p=>{
+        L.circleMarker([p.lat,p.lng],{radius:6,color:'#fff',weight:1.5,fillColor:p.judge==='미달'?'#dc2626':'#ef4444',fillOpacity:1})
+          .bindTooltip(`No.${p.no} · ${Number(p.depth).toFixed(2)}m${p.judge?' · '+p.judge:''}`).on('click',()=>select(i,false)).addTo(resultLayer);
+        bounds.push([p.lat,p.lng]);
+      });
+      L.marker([r.lat,r.lng],{opacity:0}).bindTooltip(esc(r.name),{permanent:true,direction:'top',className:'lbl',offset:[0,-6]}).on('click',()=>select(i,false)).addTo(resultLayer);
+    }else{
+      L.circleMarker([r.lat,r.lng],{radius:8,color:'#fff',weight:2,fillColor:'#7c3aed',fillOpacity:1})
+        .bindTooltip(esc(r.name),{permanent:i<5,direction:'top',className:'lbl kakao',offset:[0,-8]}).on('click',()=>select(i,false)).addTo(resultLayer);
+      bounds.push([r.lat,r.lng]);
+    }
+  });
+  let html='', lastSrc='';
+  results.forEach((r,i)=>{
+    if(r.src!==lastSrc){ html+=`<div class="grp">${r.src==='mine'?'내 측정 기록':'카카오 장소'}</div>`; lastSrc=r.src; }
+    const meta = r.src==='mine'
+      ? `측정 ${r.points.length}지점 · 최근 ${esc((r.points[r.points.length-1].time||'').split(' 오')[0])}`
+      : [r.category, r.dist!=null?(r.dist>=1000?(r.dist/1000).toFixed(1)+'km':r.dist+'m'):''].filter(Boolean).map(esc).join(' · ');
+    html+=`<button type="button" class="item" data-i="${i}">
+      <span class="badge ${r.src==='mine'?'b-mine':'b-kakao'}">${r.src==='mine'?'기록':'장소'}</span>
+      <span><div class="nm">${esc(r.name)}</div><div class="ad">${esc(r.address||'')}</div>${meta?`<div class="meta">${meta}</div>`:''}</span>
+    </button>`;
+  });
+  $('list').innerHTML=html;
+  if(results.length===1) select(0,true);
+  else if(bounds.length) map.fitBounds(bounds,{padding:[40,40],maxZoom:17});
+}
+function select(i,zoom){
+  const r=results[i]; if(!r) return;
+  document.querySelectorAll('.item').forEach(e=>e.classList.toggle('active',Number(e.dataset.i)===i));
+  if(r.src==='mine' && r.points.length>1) map.fitBounds(r.points.map(p=>[p.lat,p.lng]),{padding:[50,50],maxZoom:19});
+  else map.setView([r.lat,r.lng],zoom===false?Math.max(map.getZoom(),17):18);
+  const el=document.querySelector(`.item[data-i="${i}"]`); if(el) el.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+$('list').addEventListener('click',e=>{ const b=e.target.closest('.item'); if(b) select(Number(b.dataset.i),true); });
+$('panelHead').onclick=()=>{ $('panel').classList.toggle('collapsed'); setTimeout(()=>map.invalidateSize(),50); };
+
+async function doSearch(q){
+  q=(q||'').trim();
+  if(!q){ toast('시설명을 입력하세요'); return; }
+  try{ localStorage.setItem(LAST_Q_KEY,q); }catch(e){}
+  $('q').blur();
+  $('list').innerHTML='<div class="empty"><i class="fa-solid fa-spinner fa-spin"></i> 찾는 중...</div>';
+  $('panel').classList.remove('collapsed');
+  const mine=$('useMine').checked?searchMine(q):[];
+  let kakao=[];
+  if($('useKakao').checked){
+    try{ kakao=await searchKakao(q); }
+    catch(e){ toast(e.name==='AbortError'||e instanceof TypeError?'카카오 검색 실패 (인터넷 연결 확인)':e.message); }
+  }
+  results=[...mine,...kakao];
+  render();
+  setTimeout(()=>map.invalidateSize(),50);
+}
+$('searchForm').onsubmit=e=>{ e.preventDefault(); doSearch($('q').value); };
+
+// 뒤로: 앱 메인 화면으로
+$('backBtn').onclick=()=>{ if(history.length>1) history.back(); else location.href='./'; };
+
+// 주소에 ?q=시설명 이 있으면 바로 검색, 없으면 마지막 검색어 채움
+const qp=new URLSearchParams(location.search).get('q');
+locate(false);
+if(qp){ $('q').value=qp; doSearch(qp); }
+else { try{ $('q').value=localStorage.getItem(LAST_Q_KEY)||''; }catch(e){} }
+</script>
+</body>
+</html>

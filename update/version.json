@@ -1,10 +1,10 @@
 {
  "web": {
-  "code": 106,
-  "name": "V1.6",
-  "file": "update/web-106.zip",
-  "sha256": "48f53f4e58c514a20a4052ec58dce6a490a3e58ba99418f868dcbe0c1c0179b2",
-  "size": 856076
+  "code": 107,
+  "name": "V1.7",
+  "file": "update/web-107.zip",
+  "sha256": "df579ad506cd1991dc273e4e85de6c3c919a58321d7b40048e6389b3bff1214e",
+  "size": 858253
  },
  "apk": {
   "code": 8,
@@ -13,6 +13,6 @@
   "sha256": "3ee61b356743a005222e5a583c4dd00c18a2a42cb21f6bcddb9444c796aafa3c",
   "size": 892415
  },
- "notes": "GPS 정밀도 향상: 정밀 측정, 기준점 보정, GNSS 전체 추적, GPS 진단",
+ "notes": "브이월드 항공사진 지도 적용",
  "date": "2026-10-30"
 }

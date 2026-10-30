@@ -101,7 +101,7 @@
   <div class="legend"><span><i style="background:#16a34a"></i>적합</span><span><i style="background:#dc2626"></i>미달</span><span><i style="background:#7c3aed"></i>장소</span><span><i style="background:#9ca3af"></i>판정없음</span><span><i style="background:none;border:2px dashed #f97316;width:8px;height:8px"></i>튐의심</span></div>
   <div class="map-ctl top">
     <button type="button" class="chip on" data-layer="map">일반</button>
-    <button type="button" class="chip" data-layer="sat">위성</button>
+    <button type="button" class="chip" data-layer="sat">항공</button>
   </div>
   <div class="map-ctl bottom">
     <button type="button" class="round" id="myLocBtn" aria-label="내 위치"><i class="fa-solid fa-location-crosshairs"></i></button>
@@ -148,6 +148,7 @@
 </div>
 
 <script src="./lib/leaflet/leaflet.js"></script>
+<script src="./lib/vworld.js"></script>
 <script>
 // 카카오 REST 키 (index.html과 동일 — 카카오 콘솔에서 허용 도메인 제한 권장)
 const KAKAO_API_KEY='eaa5300f4046bfac8ce0355b1bd8cd88';
@@ -161,10 +162,9 @@ function toast(m){ const t=$('toast'); t.textContent=m; t.style.opacity='1'; cle
 // ── 지도 ──
 const map=L.map('map',{zoomControl:false,maxZoom:21}).setView([35.84,128.54],13);
 L.control.zoom({position:'bottomleft'}).addTo(map);
-const layers={
-  map:L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxNativeZoom:19,maxZoom:21,attribution:'© OpenStreetMap'}),
-  sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:19,maxZoom:21,attribution:'Esri'})
-};
+// 브이월드(국토교통부) 지도, 못 불러오면 자동 대체
+VW.onFallback=n=>toast(`브이월드 ${n}을 불러올 수 없어 기본 지도로 표시합니다 (설정에서 인증키 확인)`);
+const layers=VW.layers();
 let curLayer='map';
 function setLayer(n){
   Object.values(layers).forEach(l=>map.removeLayer(l)); layers[n].addTo(map); curLayer=n;

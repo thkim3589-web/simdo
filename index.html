@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>심도측정 시스템 V1.3 (Kakao)</title>
+    <title>심도측정 시스템 V1.4 (Kakao)</title>
     <!-- Tailwind CSS CDN 및 FontAwesome 아이콘 적용 -->
     <link rel="stylesheet" href="./lib/app.css">
     <link rel="stylesheet" href="./lib/fontawesome/css/fontawesome.min.css">
@@ -32,7 +32,7 @@
     <!-- 1. 상단 고정 헤더 -->
     <header class="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center shadow-sm">
         <h1 class="text-lg font-bold text-blue-600 flex items-center gap-2">
-            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V1.3</span>
+            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V1.4</span>
         </h1>
         <div class="flex items-center gap-2">
             <div class="flex items-center gap-1.5 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium text-gray-700">
@@ -248,6 +248,8 @@
             <button type="button" class="py-3 rounded-xl bg-blue-600 text-white text-sm font-bold"><i class="fa-solid fa-floppy-disk mr-1"></i>데이터 백업</button>
             <button type="button" class="py-3 rounded-xl border border-blue-200 text-blue-600 text-sm font-bold"><i class="fa-solid fa-file-arrow-up mr-1"></i>데이터 복원</button>
             <div class="col-span-2 text-xs text-gray-500" id="settingsBackupInfo"></div>
+            <div class="col-span-2 text-xs text-green-700" id="settingsAutoBackup" style="display:none"></div>
+            <button type="button" id="restoreUndoBtn" style="display:none" class="col-span-2 py-2 rounded-xl border border-gray-300 text-gray-600 text-xs font-semibold"></button>
           </div>
           <div class="flex items-center justify-between px-4 py-3 gap-3">
             <div><div class="text-sm font-semibold text-gray-800">백업 알림</div><div class="text-xs text-gray-500">백업 안 된 기록이 이만큼 쌓이면 알림</div></div>
@@ -296,7 +298,7 @@
 
         <section class="bg-white rounded-xl border border-gray-200/80 shadow-sm divide-y divide-gray-100">
           <h3 class="px-4 pt-3 pb-2 text-xs font-bold text-gray-400 tracking-wider">앱 정보</h3>
-          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">화면 버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V1.3</span></div>
+          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">화면 버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V1.4</span></div>
           <div id="settingsApkRow" style="display:none" class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">앱(APK) 버전</span><span class="font-semibold text-gray-800" id="settingsApkVer"></span></div>
           <div id="settingsUpdateRow" style="display:none" class="px-4 py-3 space-y-2">
             <button type="button" id="checkUpdateBtn" class="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold"><i class="fa-solid fa-rotate mr-1"></i>업데이트 확인</button>
@@ -384,7 +386,31 @@ function loadRecords(){
 }
 function saveRecords(arr){
   localStorage.setItem(DEPTH_KEY,JSON.stringify(arr));
+  scheduleAutoBackup();
 }
+// 백업 파일 내용: 측정 기록 + 사용자 + 판정 기준 + 시설 목록
+const FAC_KEY='facility_list_v1';
+function buildBackupData(){
+  let fac=null; try{ fac=JSON.parse(localStorage.getItem(FAC_KEY)||'null'); }catch(e){}
+  return {
+    version:document.getElementById('settingsVersion')?.textContent||'',
+    user:localStorage.getItem('depth_user_name')||'',
+    judge:localStorage.getItem(JUDGE_KEY)||'',
+    facilities:fac,
+    records:JSON.parse(localStorage.getItem(DEPTH_KEY)||'[]')
+  };
+}
+// APK: 저장할 때마다 다운로드/심도측정/심도측정_자동백업.json 갱신 (1.5초 모아서 한 번)
+let autoBackupTimer=null;
+function scheduleAutoBackup(){
+  if(!(window.SimdoAndroid&&SimdoAndroid.autoBackup)) return;
+  clearTimeout(autoBackupTimer);
+  autoBackupTimer=setTimeout(()=>{ try{ SimdoAndroid.autoBackup(JSON.stringify(buildBackupData())); }catch(e){} },1500);
+}
+window.__autoBackupDone=(ok,info)=>{
+  try{ localStorage.setItem('depth_autobackup_last', ok?new Date().toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'실패: '+info); }catch(e){}
+  if(typeof refreshSettingsInfo==='function') refreshSettingsInfo();
+};
 function refreshStats(){
   const arr=loadRecords();
   // 오늘의 측정 현황: 오늘 날짜 기록만 집계, 없으면 0 / - 로 표시
@@ -588,9 +614,9 @@ document.addEventListener('DOMContentLoaded',()=>{
    if(!data.length){showToast('내보낼 데이터가 없습니다.','warn');return;}
    const num=v=>{const n=parseFloat(v); return isNaN(n)?'':n;};
    const curUser=localStorage.getItem('depth_user_name')||'김태호';
-   const rows=data.map((r,i)=>({번호:i+1,측정자:r.user||curUser,관리번호:r.manageNo||'',주소:r.address||'',위치구분:r.loc||'',심도_m:num(r.depth),판정:r.judge||'',기준_m:num(r.limit),측정시간:r.time,
+   const rows=data.map((r,i)=>({번호:i+1,측정자:r.user||curUser,관리번호:r.manageNo||'',주소:r.address||'',위치구분:r.loc||'',심도_m:num(r.depth),판정:r.judge||'',기준_m:num(r.limit),측정일:'',측정시각:'',
      위도:num(r.latitude),경도:num(r.longitude),GPS정확도_m:num(r.accuracy),GPS샘플수:num(r.samples),
-     직전거리_m:num(r.dist),위치보정:r.corrected?'지도보정':'',사용위성수:num(r.sats),측위방식:r.src==='chip'?'GPS칩':r.src==='web'?'웹':''}));
+     직전거리_m:(num(r.dist)!==''&&num(r.dist)<=DIST_MAX_M)?num(r.dist):'',위치보정:r.corrected?'지도보정':'',사용위성수:num(r.sats),측위방식:r.src==='chip'?'GPS칩':r.src==='web'?'웹':''}));
    const ws=XLSX.utils.json_to_sheet(rows);
    // ── 표 양식: 검은 머리글(흰 굵은 글씨), 전체 가는 테두리, 가운데 정렬 ──
    const range=XLSX.utils.decode_range(ws['!ref']);
@@ -599,10 +625,20 @@ document.addEventListener('DOMContentLoaded',()=>{
    const font={name:'맑은 고딕',sz:11};
    const heads=Object.keys(rows[0]);
    const colLat=heads.indexOf('위도'), colLng=heads.indexOf('경도'), colDepth=heads.indexOf('심도_m'), colJudge=heads.indexOf('판정');
+   const colDate=heads.indexOf('측정일'), colTime=heads.indexOf('측정시각');
+   // '2026. 10. 29. 오후 03:19:57' → 엑셀 날짜·시각 숫자 (정렬·필터 가능)
+   const parseT=t=>{ const m=String(t||'').match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*(오전|오후)\s*(\d{1,2}):(\d{2}):(\d{2})/); if(!m) return null;
+     const h=Number(m[5])%12+(m[4]==='오후'?12:0);
+     return {day:(Date.UTC(+m[1],+m[2]-1,+m[3])-Date.UTC(1899,11,30))/86400000, tod:(h*3600+Number(m[6])*60+Number(m[7]))/86400}; };
    for(let R=0;R<=range.e.r;R++){
      for(let C=0;C<=range.e.c;C++){
        const ref=XLSX.utils.encode_cell({r:R,c:C});
        if(!ws[ref]) ws[ref]={t:'s',v:''};
+       if(R>0 && (C===colDate||C===colTime)){
+         const pt=parseT(data[R-1].time);
+         if(pt) ws[ref]= C===colDate ? {t:'n',v:pt.day,z:'yyyy-mm-dd'} : {t:'n',v:pt.tod,z:'hh:mm:ss'};
+         else if(C===colDate) ws[ref]={t:'s',v:String(data[R-1].time||'')};
+       }
        const c=ws[ref];
        c.s = R===0
          ? {font:{...font,bold:true,color:{rgb:'FFFFFF'}},fill:{patternType:'solid',fgColor:{rgb:'000000'}},
@@ -619,7 +655,7 @@ document.addEventListener('DOMContentLoaded',()=>{
        }
      }
    }
-   ws['!cols']=[{wch:5},{wch:9},{wch:12},{wch:30},{wch:9},{wch:8},{wch:7},{wch:7},{wch:26},{wch:11},{wch:12},{wch:11},{wch:9},{wch:10},{wch:12},{wch:9},{wch:9}];
+   ws['!cols']=[{wch:5},{wch:9},{wch:12},{wch:30},{wch:9},{wch:8},{wch:7},{wch:7},{wch:12},{wch:10},{wch:11},{wch:12},{wch:11},{wch:9},{wch:10},{wch:12},{wch:9},{wch:9}];
    ws['!rows']=[{hpt:20}];
    const wb=XLSX.utils.book_new();
    XLSX.utils.book_append_sheet(wb,ws,'심도측정');
@@ -639,12 +675,7 @@ document.addEventListener('DOMContentLoaded',()=>{
  if(!backupBtn||!restoreBtn) return;
 
  backupBtn.onclick=()=>{
-   const data={
-     version:'V1.3',
-     user:localStorage.getItem('depth_user_name')||'',
-     judge:localStorage.getItem(JUDGE_KEY)||'',
-     records:JSON.parse(localStorage.getItem('depth_records_v35')||'[]')
-   };
+   const data=buildBackupData();
    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
    const a=document.createElement('a');
    a.href=URL.createObjectURL(blob);
@@ -660,47 +691,88 @@ document.addEventListener('DOMContentLoaded',()=>{
 
  const input=document.createElement('input');
  input.type='file';
- input.accept='.json';
+ input.accept='.json,application/json';
  input.style.display='none';
  document.body.appendChild(input);
+ restoreBtn.onclick=()=>{ input.value=''; input.click(); };
 
- restoreBtn.onclick=()=>input.click();
+ // 같은 기록인지 판단: 측정시간 + 심도 + 좌표
+ const recKey=r=>[r.time,Number(r.depth).toFixed(3),String(r.latitude||'').slice(0,10),String(r.longitude||'').slice(0,11)].join('|');
+ let pending=null;
+ const modal=document.getElementById('restoreModal');
+ const closeM=()=>{ modal.style.display='none'; pending=null; };
 
  input.onchange=(e)=>{
    const file=e.target.files[0];
    if(!file) return;
    const fr=new FileReader();
    fr.onload=()=>{
-     try{
-       const obj=JSON.parse(fr.result);
-       if(!obj.records || !Array.isArray(obj.records)) throw new Error('invalid backup format');
-
-       // 항목별로 최소 형식(심도가 숫자로 변환 가능한지)을 검증해 손상된 레코드가
-       // 이후 통계/리스트 렌더링에서 오류를 일으키지 않도록 함
-       const validRecords = obj.records.filter(r => r && typeof r==='object' && !isNaN(parseFloat(r.depth)));
-       const skipped = obj.records.length - validRecords.length;
-
-       if(validRecords.length===0){
-         showToast('복원할 유효한 데이터가 없습니다.','error');
-         return;
-       }
-
-       const confirmMsg = skipped>0
-         ? `기존 데이터를 복원 데이터(${validRecords.length}건, 형식 오류 ${skipped}건 제외)로 덮어쓰시겠습니까?`
-         : `기존 데이터를 복원 데이터(${validRecords.length}건)로 덮어쓰시겠습니까?`;
-       if(!confirm(confirmMsg)) return;
-
-       localStorage.setItem('depth_records_v35',JSON.stringify(validRecords));
-       localStorage.setItem(BACKUP_COUNT_KEY,String(validRecords.length)); // 복원한 기록은 이미 백업 파일에 있음
-       if(obj.user) localStorage.setItem('depth_user_name',obj.user);
-       if(obj.judge) localStorage.setItem(JUDGE_KEY,obj.judge);
-       showToast('복원이 완료되었습니다. 화면을 새로고침합니다.','success');
-       setTimeout(()=>location.reload(),600);
-     }catch{
-       showToast('올바른 백업 파일이 아닙니다.','error');
-     }
+     let obj;
+     try{ obj=JSON.parse(fr.result); }catch{ showToast('올바른 백업 파일이 아닙니다.','error'); return; }
+     if(!obj || !Array.isArray(obj.records)){ showToast('올바른 백업 파일이 아닙니다.','error'); return; }
+     const valid=obj.records.filter(r=>r && typeof r==='object' && !isNaN(parseFloat(r.depth)));
+     const skipped=obj.records.length-valid.length;
+     const cur=loadRecords();
+     const have=new Set(cur.map(recKey));
+     const fresh=valid.filter(r=>!have.has(recKey(r)));
+     const facN=obj.facilities&&Array.isArray(obj.facilities.items)?obj.facilities.items.length:0;
+     pending={obj,valid,fresh};
+     const times=valid.map(r=>String(r.time||'').split(' 오')[0]).filter(Boolean).sort();
+     document.getElementById('restoreInfo').innerHTML=
+       `<b>${esc(file.name)}</b><br>측정 기록 <b>${valid.length}건</b>`+(times.length?` (${esc(times[0])} ~ ${esc(times[times.length-1])})`:'')+
+       (skipped?` · 형식 오류 ${skipped}건 제외`:'')+(facN?`<br>시설 목록 <b>${facN}건</b>`:'')+
+       `<br><span class="text-gray-500">지금 폰의 기록 ${cur.length}건 · 이 중 새 기록 ${fresh.length}건</span>`;
+     document.getElementById('restoreMergeDesc').textContent=`지금 기록은 그대로 두고 새 기록 ${fresh.length}건만 추가`;
+     document.getElementById('restoreReplaceDesc').textContent=`지금 기록 ${cur.length}건을 지우고 백업 ${valid.length}건으로 교체`;
+     const facRow=document.getElementById('restoreFacRow');
+     facRow.style.display=facN?'flex':'none';
+     document.getElementById('restoreFac').checked=facN>0;
+     modal.style.display='flex';
    };
    fr.readAsText(file);
+ };
+
+ function applyRestore(mode){
+   if(!pending) return;
+   const {obj,valid,fresh}=pending;
+   const cur=loadRecords();
+   if(mode==='replace' && !confirm(`지금 기록 ${cur.length}건을 지우고 백업 ${valid.length}건으로 바꿉니다. 계속할까요?`)) return;
+   // 되돌리기용으로 복원 전 상태 보관
+   localStorage.setItem('depth_before_restore',JSON.stringify({time:new Date().toLocaleString('ko-KR'),records:cur,fac:localStorage.getItem(FAC_KEY)}));
+   let next;
+   if(mode==='merge'){
+     next=cur.concat(fresh);
+     // 측정시간 순으로 정렬 (시간 글자 형식이 같으므로 문자열 비교로 충분)
+     const t=r=>{ const m=String(r.time||'').match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*(오전|오후)\s*(\d{1,2}):(\d{2}):(\d{2})/); if(!m) return ''; let h=Number(m[5])%12+(m[4]==='오후'?12:0); return `${m[1]}${m[2].padStart(2,'0')}${m[3].padStart(2,'0')}${String(h).padStart(2,'0')}${m[6]}${m[7]}`; };
+     next.sort((a,b)=>t(a).localeCompare(t(b)));
+   }else{
+     next=valid;
+     if(obj.user) localStorage.setItem('depth_user_name',obj.user);
+     if(obj.judge) localStorage.setItem(JUDGE_KEY,obj.judge);
+   }
+   saveRecords(next);
+   if(document.getElementById('restoreFac').checked && obj.facilities) localStorage.setItem(FAC_KEY,JSON.stringify(obj.facilities));
+   localStorage.setItem(BACKUP_COUNT_KEY,String(next.length));
+   closeM();
+   showToast(mode==='merge'?`새 기록 ${fresh.length}건을 추가했습니다.`:'복원이 완료되었습니다.','success');
+   setTimeout(()=>location.reload(),700);
+ }
+ document.getElementById('restoreMerge').onclick=()=>applyRestore('merge');
+ document.getElementById('restoreReplace').onclick=()=>applyRestore('replace');
+ document.getElementById('restoreCancel').onclick=closeM;
+
+ // 복원 전으로 되돌리기
+ const undoBtn=document.getElementById('restoreUndoBtn');
+ const refreshUndo=()=>{ const u=localStorage.getItem('depth_before_restore'); undoBtn.style.display=u?'block':'none'; if(u){ try{ const o=JSON.parse(u); undoBtn.textContent=`복원 전으로 되돌리기 (${o.time} 이전, ${o.records.length}건)`; }catch(e){} } };
+ refreshUndo();
+ undoBtn.onclick=()=>{
+   let o; try{ o=JSON.parse(localStorage.getItem('depth_before_restore')); }catch(e){ return; }
+   if(!o||!confirm(`복원하기 전 상태(기록 ${o.records.length}건)로 되돌릴까요?`)) return;
+   saveRecords(o.records);
+   if(o.fac) localStorage.setItem(FAC_KEY,o.fac); else localStorage.removeItem(FAC_KEY);
+   localStorage.removeItem('depth_before_restore');
+   showToast('복원 전 상태로 되돌렸습니다.','success');
+   setTimeout(()=>location.reload(),700);
  };
 });
 </script>
@@ -864,7 +936,7 @@ async function reverseGeocode(lat,lng){
 
 <script>
 /*
- * GPS 정밀 측위 로직 (V1.3)
+ * GPS 정밀 측위 로직 (V1.4)
  * 1) 예열: 앱이 열려 있는 동안 GPS를 계속 수신해 최근 샘플을 버퍼에 보관
  *    → 측정 버튼을 누르면 이미 쌓인 샘플을 활용해 보통 1~3초 안에 확정
  * 2) 평균: 이동 중 샘플·튐값 제거 후 정확도 가중평균
@@ -933,12 +1005,19 @@ function setSaveEnabled(on,label,bg){
 function distText(){
  return currentDist!=null?` · 직전 지점과 <b>${currentDist}m</b>`:'';
 }
+// 직전 지점과의 거리: 같은 날·같은 관리번호이고 1km 이내일 때만 (다른 현장과 비교하지 않음)
+const DIST_MAX_M=1000;
 function calcDistFromLast(){
  const arr=loadRecords();
  const last=arr[arr.length-1];
- if(last && last.latitude && last.longitude && currentLat){
-   currentDist=Math.round(gpsDistanceMeters(+last.latitude,+last.longitude,+currentLat,+currentLng)*10)/10;
- }else currentDist=null;
+ currentDist=null;
+ if(!(last && last.latitude && last.longitude && currentLat)) return;
+ if(!String(last.time||'').startsWith(todayPrefix())) return;                    // 날짜가 바뀜
+ const mn=(document.getElementById('manageNo')?.value||'').trim();
+ if((last.manageNo||'')!=='' && mn!=='' && last.manageNo!==mn) return;          // 관리번호가 바뀜
+ const d=gpsDistanceMeters(+last.latitude,+last.longitude,+currentLat,+currentLng);
+ if(d>DIST_MAX_M) return;                                                        // 너무 멂
+ currentDist=Math.round(d*10)/10;
 }
 function updateGpsStatus(){
  const s=document.getElementById('gpsStatus');
@@ -1211,6 +1290,25 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 </script>
 
+
+<!-- 복원 방식 선택 창 -->
+<div id="restoreModal" style="display:none" class="fixed inset-0 z-[10003] bg-black/40 items-end justify-center">
+  <div class="bg-white w-full max-w-md rounded-t-2xl p-5 space-y-3 shadow-xl">
+    <h3 class="font-bold text-gray-800"><i class="fa-solid fa-file-arrow-up text-blue-500 mr-1"></i> 데이터 복원</h3>
+    <div id="restoreInfo" class="text-sm text-gray-700 bg-gray-50 border border-gray-100 rounded-lg p-3 leading-relaxed"></div>
+    <label id="restoreFacRow" class="items-center gap-2 text-sm font-semibold text-gray-700"><input type="checkbox" id="restoreFac" class="w-5 h-5 accent-blue-600"> 시설 목록도 백업 파일의 것으로 바꾸기</label>
+    <button type="button" id="restoreMerge" class="w-full text-left p-3 rounded-xl border-2 border-blue-500 bg-blue-50">
+      <div class="font-bold text-blue-700"><i class="fa-solid fa-code-merge mr-1"></i> 합치기 (권장)</div>
+      <div id="restoreMergeDesc" class="text-xs text-blue-600 mt-0.5"></div>
+    </button>
+    <button type="button" id="restoreReplace" class="w-full text-left p-3 rounded-xl border border-red-200">
+      <div class="font-bold text-red-600"><i class="fa-solid fa-right-left mr-1"></i> 덮어쓰기</div>
+      <div id="restoreReplaceDesc" class="text-xs text-red-500 mt-0.5"></div>
+    </button>
+    <button type="button" id="restoreCancel" class="w-full py-3 rounded-xl bg-gray-100 text-gray-600 font-bold">취소</button>
+    <p class="text-[11px] text-gray-400 text-center">복원한 뒤에도 설정 &gt; 데이터 관리에서 복원 전으로 되돌릴 수 있습니다</p>
+  </div>
+</div>
 
 <!-- 기록 수정 창 -->
 <div id="editModal" style="display:none" class="fixed inset-0 z-[10000] bg-black/40 items-end justify-center">
@@ -1602,6 +1700,9 @@ function refreshSettingsInfo(){
   set('settingsRecordCount',`${arr.length}건`);
   const t=localStorage.getItem(BACKUP_TIME_KEY);
   const backed=Math.min(Number(localStorage.getItem(BACKUP_COUNT_KEY)||0),arr.length);
+  const ab=document.getElementById('settingsAutoBackup');
+  if(ab){ const has=!!(window.SimdoAndroid&&SimdoAndroid.autoBackup); ab.style.display=has?'block':'none';
+    if(has){ const l=localStorage.getItem('depth_autobackup_last'); ab.textContent=`자동 백업: 저장할 때마다 다운로드/심도측정/심도측정_자동백업.json 갱신`+(l?` · 마지막 ${l}`:''); } }
   set('settingsBackupInfo', t?`마지막 백업 ${t} · 백업 안 된 기록 ${arr.length-backed}건 · 저장 위치: 다운로드/심도측정`:'아직 백업한 적이 없습니다 · 저장 위치: 다운로드/심도측정');
   const src=(typeof gpsSource!=='undefined')?gpsSource:'';
   set('settingsGpsSource', src==='chip'?`현재: GPS칩 · 위성 ${gnss.used}개 사용 중`:src==='web'?'현재: 혼합 측위 (GPS·Wi-Fi·기지국)':'현재: 수신 대기');

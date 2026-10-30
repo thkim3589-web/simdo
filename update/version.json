@@ -1,18 +1,18 @@
 {
  "web": {
-  "code": 103,
-  "name": "V1.3",
-  "file": "update/web-103.zip",
-  "sha256": "acf7f6f4542c195b9413e440eaec72330ee20b48fa5ea23bf55c589e834d0524",
-  "size": 844856
+  "code": 104,
+  "name": "V1.4",
+  "file": "update/web-104.zip",
+  "sha256": "e88f8bc443da9ce90453135ee30857e958e958777e7af6eecbb91b383d3ca08f",
+  "size": 847952
  },
  "apk": {
-  "code": 6,
-  "name": "1.0",
+  "code": 7,
+  "name": "1.1",
   "file": "simdo.apk",
-  "sha256": "fa4f079159fe11bdecd4c91907123bbd9652f10969bfc07637df0051e66fda46",
-  "size": 864313
+  "sha256": "4c00e06bab24dacf8b58e4c7c1daf51a010c823ff457f9ac624622d882ddc46d",
+  "size": 880067
  },
- "notes": "시설 찾기: 적합 녹색, 미달 빨강 표시",
+ "notes": "백업·복원 개선(합치기), 자동 백업, 직전거리·엑셀 날짜 수정, 시설 전체 보기",
  "date": "2026-10-30"
 }

@@ -49,6 +49,10 @@
   .lbl{ background:#fff; border:2px solid var(--blue); color:var(--ink); font-weight:800; font-size:12px; padding:2px 7px; border-radius:8px; white-space:nowrap; box-shadow:0 1px 3px rgba(0,0,0,.25); }
   .lbl.kakao{ border-color:var(--purple); }
   .leaflet-tooltip.lbl:before{ display:none; }
+  .dep small{ display:block; text-align:right; font-size:11px; font-weight:800; }
+  .lbl-적합{ border-color:#16a34a !important; } .lbl-미달{ border-color:#dc2626 !important; } .lbl-주의{ border-color:#eab308 !important; } .lbl-none{ border-color:#9ca3af !important; }
+  .legend{ position:absolute; left:10px; top:10px; z-index:900; background:rgba(255,255,255,.92); border-radius:10px; padding:5px 8px; font-size:11px; font-weight:800; color:#374151; box-shadow:0 1px 4px rgba(0,0,0,.2); display:flex; gap:8px; }
+  .legend i{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:3px; vertical-align:-1px; }
   .dep{ flex:0 0 auto; font-size:17px; font-weight:900; color:var(--blue); white-space:nowrap; margin-top:1px; }
   .b-fac{ background:#dcfce7; color:#15803d; }
   .lbl.fac{ border-color:#16a34a; }
@@ -94,6 +98,7 @@
 
 <div id="mapWrap">
   <div id="map"></div>
+  <div class="legend"><span><i style="background:#16a34a"></i>적합</span><span><i style="background:#dc2626"></i>미달</span><span><i style="background:#7c3aed"></i>장소</span><span><i style="background:#9ca3af"></i>판정없음</span></div>
   <div class="map-ctl top">
     <button type="button" class="chip on" data-layer="map">일반</button>
     <button type="button" class="chip" data-layer="sat">위성</button>
@@ -193,12 +198,35 @@ function searchMine(q){
     if(!hay.includes(k)) return;
     const key=mn||ad;
     if(!groups.has(key)) groups.set(key,{name:mn||'(관리번호 없음)',address:ad,points:[]});
-    groups.get(key).points.push({lat,lng,no:i+1,depth:r.depth,judge:r.judge,time:r.time});
+    groups.get(key).points.push({lat,lng,no:i+1,depth:r.depth,judge:r.judge,loc:r.loc,locCat:r.locCat,time:r.time});
   });
   return [...groups.values()].map(g=>{
     const lat=g.points.reduce((a,p)=>a+p.lat,0)/g.points.length, lng=g.points.reduce((a,p)=>a+p.lng,0)/g.points.length;
     return {src:'mine',name:g.name,address:g.address,lat,lng,points:g.points};
   });
+}
+
+// ── 심도 판정 (메인 화면 설정의 판정 기준을 그대로 사용) ──
+// 녹색 = 적합(양호), 빨강 = 미달, 노랑 = 주의(설정에서 켠 경우), 회색 = 판정 불가
+const JC={'적합':'#16a34a','주의':'#eab308','미달':'#dc2626','':'#9ca3af'};
+function judgeCfg(){
+  let c={}; try{ c=JSON.parse(localStorage.getItem('depth_judge_cfg')||'{}'); }catch(e){}
+  return {limits:Object.assign({'차도':0.8},c.limits||{}),caution:Number(c.caution||0),ref:c.ref||'top',od:Number(c.od||0)};
+}
+// 엑셀 시설은 위치 구분이 없으므로 '차도' 기준으로 판정
+function judgeOf(depth,loc){
+  const c=judgeCfg(), lim=c.limits[loc||'차도'], d=parseFloat(depth);
+  if(lim===undefined||lim===''||lim===null||isNaN(Number(lim))||isNaN(d)) return '';
+  const eff=d-(c.ref==='center'&&c.od>0?c.od/2000:0);
+  if(eff<=Number(lim)+1e-9) return '미달';
+  if(c.caution>0&&eff<=Number(lim)+c.caution+1e-9) return '주의';
+  return '적합';
+}
+function pointJudge(p){ return p.judge||judgeOf(p.depth,p.locCat||p.loc); }
+function groupJudge(r){
+  if(r.src==='fac') return judgeOf(r.depth,'차도');
+  if(r.src==='mine'){ const js=r.points.map(pointJudge); return js.includes('미달')?'미달':js.includes('주의')?'주의':js.includes('적합')?'적합':''; }
+  return '';
 }
 
 const fmtD=d=>(d==null||isNaN(Number(d)))?'':Number(d).toFixed(2)+'m';
@@ -247,15 +275,16 @@ function render(){
   results.forEach((r,i)=>{
     if(r.src==='mine'){
       r.points.forEach(p=>{
-        L.circleMarker([p.lat,p.lng],{radius:6,color:'#fff',weight:1.5,fillColor:p.judge==='미달'?'#dc2626':'#ef4444',fillOpacity:1})
-          .bindTooltip(`No.${p.no} · ${Number(p.depth).toFixed(2)}m${p.judge?' · '+p.judge:''}`).on('click',()=>select(i,false)).addTo(resultLayer);
+        const pj=pointJudge(p);
+        L.circleMarker([p.lat,p.lng],{radius:7,color:'#fff',weight:2,fillColor:JC[pj],fillOpacity:1})
+          .bindTooltip(`No.${p.no} · ${Number(p.depth).toFixed(2)}m${pj?' · '+pj:''}`).on('click',()=>select(i,false)).addTo(resultLayer);
         bounds.push([p.lat,p.lng]);
       });
-      L.marker([r.lat,r.lng],{opacity:0}).bindTooltip(esc(r.name)+(depthText(r)?` <span style="color:#2563eb">${depthText(r)}</span>`:''),{permanent:true,direction:'top',className:'lbl',offset:[0,-6]}).on('click',()=>select(i,false)).addTo(resultLayer);
+      L.marker([r.lat,r.lng],{opacity:0}).bindTooltip(esc(r.name)+(depthText(r)?` <span style="color:${JC[groupJudge(r)]==='#9ca3af'?'#2563eb':JC[groupJudge(r)]}">${depthText(r)}</span>`:''),{permanent:true,direction:'top',className:'lbl lbl-'+(groupJudge(r)||'none'),offset:[0,-6]}).on('click',()=>select(i,false)).addTo(resultLayer);
     }else if(r.src==='fac'){
       if(r.lat==null) return; // 좌표 없음
-      L.circleMarker([r.lat,r.lng],{radius:8,color:'#fff',weight:2,fillColor:'#16a34a',fillOpacity:1})
-        .bindTooltip(esc(r.name)+(depthText(r)?` <span style="color:#2563eb">${depthText(r)}</span>`:''),{permanent:i<15,direction:'top',className:'lbl fac',offset:[0,-8]}).on('click',()=>select(i,false)).addTo(resultLayer);
+      L.circleMarker([r.lat,r.lng],{radius:8,color:'#fff',weight:2,fillColor:JC[groupJudge(r)],fillOpacity:1})
+        .bindTooltip(esc(r.name)+(depthText(r)?` <span style="color:${JC[groupJudge(r)]==='#9ca3af'?'#2563eb':JC[groupJudge(r)]}">${depthText(r)}</span>`:''),{permanent:i<15,direction:'top',className:'lbl lbl-'+(groupJudge(r)||'none'),offset:[0,-8]}).on('click',()=>select(i,false)).addTo(resultLayer);
       bounds.push([r.lat,r.lng]);
     }else{
       L.circleMarker([r.lat,r.lng],{radius:8,color:'#fff',weight:2,fillColor:'#7c3aed',fillOpacity:1})
@@ -273,7 +302,7 @@ function render(){
     html+=`<button type="button" class="item" data-i="${i}">
       <span class="badge ${{fac:'b-fac',mine:'b-mine',kakao:'b-kakao'}[r.src]}">${{fac:'시설',mine:'기록',kakao:'장소'}[r.src]}</span>
       <span style="flex:1;min-width:0"><div class="nm">${esc(r.name)}</div><div class="ad">${esc(r.address||'')}</div>${meta?`<div class="meta">${meta}</div>`:''}</span>
-      ${depthText(r)?`<span class="dep">${depthText(r)}</span>`:''}
+      ${depthText(r)?`<span class="dep" style="color:${groupJudge(r)?JC[groupJudge(r)]:'#2563eb'}">${depthText(r)}${groupJudge(r)?`<small>${groupJudge(r)}</small>`:''}</span>`:''}
     </button>`;
   });
   $('list').innerHTML=html;

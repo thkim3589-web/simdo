@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>심도측정 시스템 V1.2 (Kakao)</title>
+    <title>심도측정 시스템 V1.3 (Kakao)</title>
     <!-- Tailwind CSS CDN 및 FontAwesome 아이콘 적용 -->
     <link rel="stylesheet" href="./lib/app.css">
     <link rel="stylesheet" href="./lib/fontawesome/css/fontawesome.min.css">
@@ -32,7 +32,7 @@
     <!-- 1. 상단 고정 헤더 -->
     <header class="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center shadow-sm">
         <h1 class="text-lg font-bold text-blue-600 flex items-center gap-2">
-            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V1.2</span>
+            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V1.3</span>
         </h1>
         <div class="flex items-center gap-2">
             <div class="flex items-center gap-1.5 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium text-gray-700">
@@ -296,7 +296,7 @@
 
         <section class="bg-white rounded-xl border border-gray-200/80 shadow-sm divide-y divide-gray-100">
           <h3 class="px-4 pt-3 pb-2 text-xs font-bold text-gray-400 tracking-wider">앱 정보</h3>
-          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">화면 버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V1.2</span></div>
+          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">화면 버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V1.3</span></div>
           <div id="settingsApkRow" style="display:none" class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">앱(APK) 버전</span><span class="font-semibold text-gray-800" id="settingsApkVer"></span></div>
           <div id="settingsUpdateRow" style="display:none" class="px-4 py-3 space-y-2">
             <button type="button" id="checkUpdateBtn" class="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold"><i class="fa-solid fa-rotate mr-1"></i>업데이트 확인</button>
@@ -640,7 +640,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 
  backupBtn.onclick=()=>{
    const data={
-     version:'V1.2',
+     version:'V1.3',
      user:localStorage.getItem('depth_user_name')||'',
      judge:localStorage.getItem(JUDGE_KEY)||'',
      records:JSON.parse(localStorage.getItem('depth_records_v35')||'[]')
@@ -864,7 +864,7 @@ async function reverseGeocode(lat,lng){
 
 <script>
 /*
- * GPS 정밀 측위 로직 (V1.2)
+ * GPS 정밀 측위 로직 (V1.3)
  * 1) 예열: 앱이 열려 있는 동안 GPS를 계속 수신해 최근 샘플을 버퍼에 보관
  *    → 측정 버튼을 누르면 이미 쌓인 샘플을 활용해 보통 1~3초 안에 확정
  * 2) 평균: 이동 중 샘플·튐값 제거 후 정확도 가중평균

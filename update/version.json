@@ -1,10 +1,10 @@
 {
  "web": {
-  "code": 104,
-  "name": "V1.4",
-  "file": "update/web-104.zip",
-  "sha256": "e88f8bc443da9ce90453135ee30857e958e958777e7af6eecbb91b383d3ca08f",
-  "size": 847952
+  "code": 105,
+  "name": "V1.5",
+  "file": "update/web-105.zip",
+  "sha256": "f4311a92ea4da9f193120b9b8541794aa94d787ec5d08d839696ce726bb776b9",
+  "size": 851873
  },
  "apk": {
   "code": 7,
@@ -13,6 +13,6 @@
   "sha256": "4c00e06bab24dacf8b58e4c7c1daf51a010c823ff457f9ac624622d882ddc46d",
   "size": 880067
  },
- "notes": "백업·복원 개선(합치기), 자동 백업, 직전거리·엑셀 날짜 수정, 시설 전체 보기",
+ "notes": "측정 간격 안내, 튄 지점 경고, 시설 찾기 경로선 표시",
  "date": "2026-10-30"
 }

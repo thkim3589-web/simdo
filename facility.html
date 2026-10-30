@@ -98,7 +98,7 @@
 
 <div id="mapWrap">
   <div id="map"></div>
-  <div class="legend"><span><i style="background:#16a34a"></i>적합</span><span><i style="background:#dc2626"></i>미달</span><span><i style="background:#7c3aed"></i>장소</span><span><i style="background:#9ca3af"></i>판정없음</span></div>
+  <div class="legend"><span><i style="background:#16a34a"></i>적합</span><span><i style="background:#dc2626"></i>미달</span><span><i style="background:#7c3aed"></i>장소</span><span><i style="background:#9ca3af"></i>판정없음</span><span><i style="background:none;border:2px dashed #f97316;width:8px;height:8px"></i>튐의심</span></div>
   <div class="map-ctl top">
     <button type="button" class="chip on" data-layer="map">일반</button>
     <button type="button" class="chip" data-layer="sat">위성</button>
@@ -270,9 +270,77 @@ async function searchKakao(q){
 
 // ── 결과 표시 ──
 let results=[];
+/* ── 경로 점검 (튄 지점 판정) — index.html·facility.html 공용 ──
+ * 튄 지점: 앞뒤 지점을 잇는 선에서 기준 이상 벗어났고, 그 점을 빼면 앞뒤 흐름이 곧게 이어지는 경우.
+ * 실제로 길이 꺾이는 모퉁이(ㄱ자)는 앞뒤 흐름이 달라서 제외됨.
+ */
+function rcXY(p,o){ const k=Math.cos(o.lat*Math.PI/180); return {x:(p.lng-o.lng)*111320*k, y:(p.lat-o.lat)*111320}; }
+function rcDist(a,b){ const o=rcXY(b,a); return Math.hypot(o.x,o.y); }
+function rcAng(a,b,c,d){ const u=rcXY(b,a), v=rcXY(d,c); const cos=(u.x*v.x+u.y*v.y)/((Math.hypot(u.x,u.y)*Math.hypot(v.x,v.y))||1); return Math.acos(Math.max(-1,Math.min(1,cos)))*180/Math.PI; }
+function rcDev(prev,p,next){ const a=rcXY(prev,p), c=rcXY(next,p); const L=Math.hypot(c.x-a.x,c.y-a.y); return L>0?Math.abs(a.x*c.y-a.y*c.x)/L:Math.hypot(a.x,a.y); }
+function findSpikes(pts,devMin){
+  const out=[];
+  if(!(devMin>0)) return out;
+  for(let i=1;i<pts.length-1;i++){
+    const prev=pts[i-1],p=pts[i],next=pts[i+1];
+    const dev=rcDev(prev,p,next); if(dev<devMin) continue;
+    if(rcAng(prev,p,p,next)<35) continue;
+    const inOk = i<2 || rcAng(pts[i-2],prev,prev,next)<=35;
+    const outOk= i>pts.length-3 || rcAng(prev,next,next,pts[i+2])<=35;
+    if(inOk&&outOk) out.push({i,dev:Math.round(dev*10)/10});
+  }
+  return out;
+}
+// 같은 경로로 이어지는 구간으로 나눔 (간격 maxGap 넘으면 끊음)
+function splitRuns(pts,maxGap){
+  const runs=[]; let cur=[];
+  pts.forEach(p=>{ if(cur.length && rcDist(cur[cur.length-1],p)>maxGap){ runs.push(cur); cur=[]; } cur.push(p); });
+  if(cur.length) runs.push(cur);
+  return runs;
+}
+
+const SPIKE_MIN=(()=>{ const v=localStorage.getItem('depth_spike_m'); return v===null?4:Number(v); })();
+const ROUTE_GAP=100; // 이보다 멀면 다른 구간으로 보고 선을 끊음
+// 경로 선 + 튄 지점 표시. 측정 기록은 같은 관리번호·같은 날, 엑셀 시설은 같은 이름이 연속된 것을 한 경로로 봄
+let spikeRings=[];
+function drawRoutes(){
+  const routes=[]; spikeRings=[];
+  results.forEach((r,i)=>{
+    if(r.src!=='mine') return;
+    const byDay=new Map();
+    r.points.forEach(p=>{ const d=String(p.time||'').slice(0,13); if(!byDay.has(d)) byDay.set(d,[]); byDay.get(d).push(p); });
+    byDay.forEach(ps=>routes.push({pts:ps.sort((a,b)=>a.no-b.no), owner:i}));
+  });
+  let cur=null;
+  results.forEach((r,i)=>{
+    if(r.src!=='fac'||r.lat==null){ cur=null; return; }
+    if(cur && cur.name===r.name){ cur.pts.push({lat:r.lat,lng:r.lng,idx:i}); }
+    else { cur={name:r.name,pts:[{lat:r.lat,lng:r.lng,idx:i}]}; routes.push(cur); }
+  });
+  routes.forEach(rt=>{
+    splitRuns(rt.pts,ROUTE_GAP).forEach(run=>{
+      if(run.length<2) return;
+      L.polyline(run.map(p=>[p.lat,p.lng]),{color:'#1e3a8a',weight:3,opacity:.55,dashArray:'6 6',interactive:false}).addTo(resultLayer);
+      findSpikes(run,SPIKE_MIN).forEach(sp=>{
+        const p=run[sp.i];
+        spikeRings.push(L.circleMarker([p.lat,p.lng],{radius:14,color:'#f97316',weight:3,fill:false,dashArray:'3 3'})
+          .bindTooltip(`튐 의심 · 경로에서 ${sp.dev}m`,{direction:'right'}));
+        if(p.idx!=null) results[p.idx].spike=sp.dev;
+        else if(rt.owner!=null) results[rt.owner].spikes=(results[rt.owner].spikes||0)+1;
+      });
+    });
+  });
+}
+
+// 점 크기를 지도 확대 정도에 맞춤 (멀리서 보면 작게 → 경로선·튐 표시가 가려지지 않음)
+const dotR=(base)=>{ const z=map.getZoom(); return z>=19?base:z>=18?base-1:z>=17?base-2:z>=16?base-3:Math.max(3,base-4); };
+map.on('zoomend',()=>resultLayer.eachLayer(l=>{ if(l.options._base) l.setRadius(dotR(l.options._base)); }));
+
 let allMode=false;
 function render(){
   resultLayer.clearLayers();
+  results.forEach(r=>{ delete r.spike; delete r.spikes; });
+  drawRoutes();
   $('cnt').textContent=results.length;
   if(!results.length){ $('list').innerHTML='<div class="empty">검색 결과가 없습니다.<br>시설명을 줄이거나 다른 이름으로 찾아보세요.</div>'; return; }
   const bounds=[];
@@ -280,14 +348,14 @@ function render(){
     if(r.src==='mine'){
       r.points.forEach(p=>{
         const pj=pointJudge(p);
-        L.circleMarker([p.lat,p.lng],{radius:7,color:'#fff',weight:2,fillColor:JC[pj],fillOpacity:1})
+        L.circleMarker([p.lat,p.lng],{_base:8,radius:dotR(8),color:'#fff',weight:1.5,fillColor:JC[pj],fillOpacity:1})
           .bindTooltip(`No.${p.no} · ${Number(p.depth).toFixed(2)}m${pj?' · '+pj:''}`).on('click',()=>select(i,false)).addTo(resultLayer);
         bounds.push([p.lat,p.lng]);
       });
       L.marker([r.lat,r.lng],{opacity:0}).bindTooltip(esc(r.name)+(depthText(r)?` <span style="color:${JC[groupJudge(r)]==='#9ca3af'?'#2563eb':JC[groupJudge(r)]}">${depthText(r)}</span>`:''),{permanent:!allMode,direction:'top',className:'lbl lbl-'+(groupJudge(r)||'none'),offset:[0,-6]}).on('click',()=>select(i,false)).addTo(resultLayer);
     }else if(r.src==='fac'){
       if(r.lat==null) return; // 좌표 없음
-      L.circleMarker([r.lat,r.lng],{radius:8,color:'#fff',weight:2,fillColor:JC[groupJudge(r)],fillOpacity:1})
+      L.circleMarker([r.lat,r.lng],{_base:9,radius:dotR(9),color:'#fff',weight:1.5,fillColor:JC[groupJudge(r)],fillOpacity:1})
         .bindTooltip(esc(r.name)+(depthText(r)?` <span style="color:${JC[groupJudge(r)]==='#9ca3af'?'#2563eb':JC[groupJudge(r)]}">${depthText(r)}</span>`:''),{permanent:!allMode&&i<15,direction:'top',className:'lbl lbl-'+(groupJudge(r)||'none'),offset:[0,-8]}).on('click',()=>select(i,false)).addTo(resultLayer);
       bounds.push([r.lat,r.lng]);
     }else{
@@ -299,9 +367,10 @@ function render(){
   let html='', lastSrc='';
   results.forEach((r,i)=>{
     if(r.src!==lastSrc){ html+=`<div class="grp">${{fac:'시설 목록',mine:'내 측정 기록',kakao:'카카오 장소'}[r.src]}</div>`; lastSrc=r.src; }
-    const meta = r.src==='fac' ? [r.lat==null?'⚠ 위치 없음':'', (r.loc||r.locCat)?`${r.loc||r.locCat} 기준`:'', r.extra].filter(Boolean).map(esc).join(' · ')
+    const spk = r.spike?`<span style="color:#ea580c;font-weight:800">튐 의심 ${r.spike}m</span>`:r.spikes?`<span style="color:#ea580c;font-weight:800">튐 의심 ${r.spikes}곳</span>`:'';
+    const meta = r.src==='fac' ? [spk, ...[r.lat==null?'⚠ 위치 없음':'', (r.loc||r.locCat)?`${r.loc||r.locCat} 기준`:'', r.extra].filter(Boolean).map(esc)].filter(Boolean).join(' · ')
       : r.src==='mine'
-      ? `측정 ${r.points.length}지점 · 최근 ${esc((r.points[r.points.length-1].time||'').split(' 오')[0])}`
+      ? `측정 ${r.points.length}지점 · 최근 ${esc((r.points[r.points.length-1].time||'').split(' 오')[0])}`+(spk?' · '+spk:'')
       : [r.category, r.dist!=null?(r.dist>=1000?(r.dist/1000).toFixed(1)+'km':r.dist+'m'):''].filter(Boolean).map(esc).join(' · ');
     html+=`<button type="button" class="item" data-i="${i}">
       <span class="badge ${{fac:'b-fac',mine:'b-mine',kakao:'b-kakao'}[r.src]}">${{fac:'시설',mine:'기록',kakao:'장소'}[r.src]}</span>
@@ -310,6 +379,7 @@ function render(){
     </button>`;
   });
   $('list').innerHTML=html;
+  spikeRings.forEach(r=>r.addTo(resultLayer));
   if(allMode){
     const js=results.map(groupJudge);
     const n=k=>js.filter(x=>x===k).length;

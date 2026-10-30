@@ -1,10 +1,10 @@
 {
  "web": {
-  "code": 101,
-  "name": "V1.1",
-  "file": "update/web-101.zip",
-  "sha256": "9350ea7304d904cb5a022f0983bd0900c139f173b3ca24f6bf5127d937d4727f",
-  "size": 839515
+  "code": 102,
+  "name": "V1.2",
+  "file": "update/web-102.zip",
+  "sha256": "076d6ec16b33b8f1ef60ec8dc58d17087a148b0020cff381864fe07b17f72141",
+  "size": 844076
  },
  "apk": {
   "code": 6,
@@ -13,6 +13,6 @@
   "sha256": "fa4f079159fe11bdecd4c91907123bbd9652f10969bfc07637df0051e66fda46",
   "size": 864313
  },
- "notes": "시설 찾기 페이지 추가 (상단 지도 버튼)",
+ "notes": "시설 목록 엑셀 불러오기, 시설 심도 표시",
  "date": "2026-10-30"
 }

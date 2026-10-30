@@ -49,6 +49,26 @@
   .lbl{ background:#fff; border:2px solid var(--blue); color:var(--ink); font-weight:800; font-size:12px; padding:2px 7px; border-radius:8px; white-space:nowrap; box-shadow:0 1px 3px rgba(0,0,0,.25); }
   .lbl.kakao{ border-color:var(--purple); }
   .leaflet-tooltip.lbl:before{ display:none; }
+  .dep{ flex:0 0 auto; font-size:17px; font-weight:900; color:var(--blue); white-space:nowrap; margin-top:1px; }
+  .b-fac{ background:#dcfce7; color:#15803d; }
+  .lbl.fac{ border-color:#16a34a; }
+  header .sp{ flex:1; }
+  .hbtn{ border:0; border-radius:999px; background:#ecfdf5; color:#15803d; font-weight:800; font-size:13px; padding:9px 12px; white-space:nowrap; }
+  #imp{ position:fixed; inset:0; z-index:6000; background:rgba(0,0,0,.45); display:none; align-items:flex-end; justify-content:center; }
+  #imp .sheet{ background:#fff; width:100%; max-width:480px; max-height:88vh; overflow-y:auto; border-radius:18px 18px 0 0; padding:16px 16px calc(16px + env(safe-area-inset-bottom)); }
+  #imp h3{ margin:0 0 4px; font-size:17px; }
+  #imp .desc{ font-size:12px; color:var(--sub); line-height:1.6; margin-bottom:10px; }
+  #imp .info{ background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:9px 11px; font-size:13px; color:#374151; margin-bottom:10px; }
+  #imp .row{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin:7px 0; font-size:14px; font-weight:700; }
+  #imp select{ flex:0 0 58%; border:1px solid #d1d5db; border-radius:8px; padding:7px 8px; font-size:14px; font-weight:600; background:#fff; color:var(--ink); }
+  #imp .btns{ display:flex; gap:8px; margin-top:12px; }
+  #imp .btns button{ flex:1; border:0; border-radius:12px; padding:13px; font-size:15px; font-weight:800; }
+  .b-pri{ background:var(--blue); color:#fff; } .b-sec{ background:#f3f4f6; color:#374151; } .b-del{ background:#fff; color:#dc2626; border:1px solid #fecaca !important; }
+  .b-pri:disabled{ opacity:.5; }
+  #imp table{ width:100%; border-collapse:collapse; font-size:11px; margin-top:6px; }
+  #imp th,#imp td{ border:1px solid var(--line); padding:4px 5px; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:110px; }
+  #imp th{ background:#f3f4f6; }
+  #impProg{ font-size:13px; font-weight:700; color:var(--blue); text-align:center; margin-top:8px; min-height:18px; }
   #toast{ position:fixed; left:50%; bottom:46vh; transform:translateX(-50%); background:#1f2937; color:#fff; font-size:13px; font-weight:700; padding:9px 15px; border-radius:999px; z-index:5000; opacity:0; transition:opacity .2s; pointer-events:none; max-width:88%; text-align:center; }
 </style>
 </head>
@@ -56,6 +76,8 @@
 <header>
   <button type="button" class="icon-btn" id="backBtn" aria-label="뒤로"><i class="fa-solid fa-arrow-left"></i></button>
   <h1><i class="fa-solid fa-map-location-dot"></i> 시설 찾기</h1>
+  <span class="sp"></span>
+  <button type="button" class="hbtn" id="impOpen"><i class="fa-solid fa-file-excel"></i> 시설 목록</button>
 </header>
 
 <div class="search">
@@ -64,6 +86,7 @@
     <button type="submit"><i class="fa-solid fa-magnifying-glass"></i> 검색</button>
   </form>
   <div class="scope">
+    <label><input type="checkbox" id="useFac" checked> 시설 목록 <span id="facCnt">0</span></label>
     <label><input type="checkbox" id="useMine" checked> 내 측정 기록</label>
     <label><input type="checkbox" id="useKakao" checked> 카카오 장소</label>
   </div>
@@ -88,6 +111,34 @@
   <div id="list"><div class="empty">시설명을 입력하고 검색하세요.<br>내 측정 기록의 관리번호·주소와 카카오 장소를 함께 찾습니다.</div></div>
 </div>
 <div id="toast"></div>
+
+<div id="imp">
+  <div class="sheet">
+    <h3><i class="fa-solid fa-file-excel" style="color:#16a34a"></i> 시설 목록 엑셀 불러오기</h3>
+    <div class="desc">시설명과 <b>주소 또는 위도·경도</b>가 있는 엑셀(.xlsx, .xls, .csv)을 고르세요. 좌표가 없으면 주소로 위치를 찾습니다(인터넷 필요).</div>
+    <div class="info" id="impCur"></div>
+    <input type="file" id="impFile" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" style="display:none">
+    <div id="impMap" style="display:none">
+      <div class="info" id="impFileInfo"></div>
+      <div class="row">시트 <select id="selSheet"></select></div>
+      <div class="row">제목 행 <select id="selHead"></select></div>
+      <div class="row">시설명 <select id="selName"></select></div>
+      <div class="row">주소 <select id="selAddr"></select></div>
+      <div class="row">심도(m) <select id="selDepth"></select></div>
+      <div class="row">위도 <select id="selLat"></select></div>
+      <div class="row">경도 <select id="selLng"></select></div>
+      <div style="font-size:12px;font-weight:800;color:var(--sub);margin-top:10px">미리보기</div>
+      <div style="overflow-x:auto"><table id="impPrev"></table></div>
+    </div>
+    <div id="impProg"></div>
+    <div class="btns">
+      <button type="button" class="b-sec" id="impClose">닫기</button>
+      <button type="button" class="b-pri" id="impPick"><i class="fa-solid fa-folder-open"></i> 엑셀 선택</button>
+      <button type="button" class="b-pri" id="impGo" style="display:none">불러오기</button>
+    </div>
+    <div class="btns"><button type="button" class="b-del" id="impClear" style="display:none">시설 목록 삭제</button></div>
+  </div>
+</div>
 
 <script src="./lib/leaflet/leaflet.js"></script>
 <script>
@@ -150,6 +201,28 @@ function searchMine(q){
   });
 }
 
+const fmtD=d=>(d==null||isNaN(Number(d)))?'':Number(d).toFixed(2)+'m';
+function depthText(r){
+  if(r.src==='fac') return fmtD(r.depth);
+  if(r.src==='mine'){
+    const ds=r.points.map(p=>Number(p.depth)).filter(x=>!isNaN(x)); if(!ds.length) return '';
+    const mn=Math.min(...ds), mx=Math.max(...ds);
+    return mn===mx?fmtD(mn):`${mn.toFixed(2)}~${mx.toFixed(2)}m`;
+  }
+  return '';
+}
+
+// ── 엑셀에서 불러온 시설 목록 ──
+const FAC_KEY='facility_list_v1';
+function loadFacs(){ try{ return JSON.parse(localStorage.getItem(FAC_KEY)||'null'); }catch(e){ return null; } }
+function facItems(){ const f=loadFacs(); return f&&Array.isArray(f.items)?f.items:[]; }
+function updFacCnt(){ $('facCnt').textContent=facItems().length; }
+function searchFacs(q){
+  const k=q.replace(/\s+/g,'').toLowerCase();
+  return facItems().filter(f=>((f.name||'')+' '+(f.addr||'')+' '+(f.extra||'')).replace(/\s+/g,'').toLowerCase().includes(k))
+    .slice(0,300).map(f=>({src:'fac',name:f.name,address:f.addr,lat:f.lat,lng:f.lng,extra:f.extra,depth:f.depth}));
+}
+
 // ── 카카오 장소 검색 ──
 async function searchKakao(q){
   const c=myLoc||map.getCenter();
@@ -178,7 +251,12 @@ function render(){
           .bindTooltip(`No.${p.no} · ${Number(p.depth).toFixed(2)}m${p.judge?' · '+p.judge:''}`).on('click',()=>select(i,false)).addTo(resultLayer);
         bounds.push([p.lat,p.lng]);
       });
-      L.marker([r.lat,r.lng],{opacity:0}).bindTooltip(esc(r.name),{permanent:true,direction:'top',className:'lbl',offset:[0,-6]}).on('click',()=>select(i,false)).addTo(resultLayer);
+      L.marker([r.lat,r.lng],{opacity:0}).bindTooltip(esc(r.name)+(depthText(r)?` <span style="color:#2563eb">${depthText(r)}</span>`:''),{permanent:true,direction:'top',className:'lbl',offset:[0,-6]}).on('click',()=>select(i,false)).addTo(resultLayer);
+    }else if(r.src==='fac'){
+      if(r.lat==null) return; // 좌표 없음
+      L.circleMarker([r.lat,r.lng],{radius:8,color:'#fff',weight:2,fillColor:'#16a34a',fillOpacity:1})
+        .bindTooltip(esc(r.name)+(depthText(r)?` <span style="color:#2563eb">${depthText(r)}</span>`:''),{permanent:i<15,direction:'top',className:'lbl fac',offset:[0,-8]}).on('click',()=>select(i,false)).addTo(resultLayer);
+      bounds.push([r.lat,r.lng]);
     }else{
       L.circleMarker([r.lat,r.lng],{radius:8,color:'#fff',weight:2,fillColor:'#7c3aed',fillOpacity:1})
         .bindTooltip(esc(r.name),{permanent:i<5,direction:'top',className:'lbl kakao',offset:[0,-8]}).on('click',()=>select(i,false)).addTo(resultLayer);
@@ -187,21 +265,24 @@ function render(){
   });
   let html='', lastSrc='';
   results.forEach((r,i)=>{
-    if(r.src!==lastSrc){ html+=`<div class="grp">${r.src==='mine'?'내 측정 기록':'카카오 장소'}</div>`; lastSrc=r.src; }
-    const meta = r.src==='mine'
+    if(r.src!==lastSrc){ html+=`<div class="grp">${{fac:'시설 목록',mine:'내 측정 기록',kakao:'카카오 장소'}[r.src]}</div>`; lastSrc=r.src; }
+    const meta = r.src==='fac' ? [r.lat==null?'⚠ 위치 없음':'', r.extra].filter(Boolean).map(esc).join(' · ')
+      : r.src==='mine'
       ? `측정 ${r.points.length}지점 · 최근 ${esc((r.points[r.points.length-1].time||'').split(' 오')[0])}`
       : [r.category, r.dist!=null?(r.dist>=1000?(r.dist/1000).toFixed(1)+'km':r.dist+'m'):''].filter(Boolean).map(esc).join(' · ');
     html+=`<button type="button" class="item" data-i="${i}">
-      <span class="badge ${r.src==='mine'?'b-mine':'b-kakao'}">${r.src==='mine'?'기록':'장소'}</span>
-      <span><div class="nm">${esc(r.name)}</div><div class="ad">${esc(r.address||'')}</div>${meta?`<div class="meta">${meta}</div>`:''}</span>
+      <span class="badge ${{fac:'b-fac',mine:'b-mine',kakao:'b-kakao'}[r.src]}">${{fac:'시설',mine:'기록',kakao:'장소'}[r.src]}</span>
+      <span style="flex:1;min-width:0"><div class="nm">${esc(r.name)}</div><div class="ad">${esc(r.address||'')}</div>${meta?`<div class="meta">${meta}</div>`:''}</span>
+      ${depthText(r)?`<span class="dep">${depthText(r)}</span>`:''}
     </button>`;
   });
   $('list').innerHTML=html;
-  if(results.length===1) select(0,true);
+  if(results.length===1 && results[0].lat!=null) select(0,true);
   else if(bounds.length) map.fitBounds(bounds,{padding:[40,40],maxZoom:17});
 }
 function select(i,zoom){
   const r=results[i]; if(!r) return;
+  if(r.lat==null){ toast('이 시설은 위치(주소·좌표)가 없습니다'); return; }
   document.querySelectorAll('.item').forEach(e=>e.classList.toggle('active',Number(e.dataset.i)===i));
   if(r.src==='mine' && r.points.length>1) map.fitBounds(r.points.map(p=>[p.lat,p.lng]),{padding:[50,50],maxZoom:19});
   else map.setView([r.lat,r.lng],zoom===false?Math.max(map.getZoom(),17):18);
@@ -217,17 +298,163 @@ async function doSearch(q){
   $('q').blur();
   $('list').innerHTML='<div class="empty"><i class="fa-solid fa-spinner fa-spin"></i> 찾는 중...</div>';
   $('panel').classList.remove('collapsed');
+  const fac=$('useFac').checked?searchFacs(q):[];
   const mine=$('useMine').checked?searchMine(q):[];
   let kakao=[];
   if($('useKakao').checked){
     try{ kakao=await searchKakao(q); }
     catch(e){ toast(e.name==='AbortError'||e instanceof TypeError?'카카오 검색 실패 (인터넷 연결 확인)':e.message); }
   }
-  results=[...mine,...kakao];
+  results=[...fac,...mine,...kakao];
   render();
   setTimeout(()=>map.invalidateSize(),50);
 }
 $('searchForm').onsubmit=e=>{ e.preventDefault(); doSearch($('q').value); };
+
+// ───────── 엑셀 불러오기 ─────────
+let XL=null, wbk=null, sheetRows=[];
+function loadXlsxLib(){
+  if(window.XLSX) return Promise.resolve();
+  return new Promise((ok,fail)=>{ const sc=document.createElement('script'); sc.src='./lib/xlsx-style.min.js'; sc.onload=ok; sc.onerror=fail; document.head.appendChild(sc); });
+}
+function impInfo(){
+  const f=loadFacs(); const n=facItems().length;
+  const noLoc=facItems().filter(x=>x.lat==null).length;
+  $('impCur').innerHTML = n ? `현재 시설 목록 <b>${n}건</b>${noLoc?` (위치 없음 ${noLoc}건)`:''}<br><span style="color:#6b7280;font-size:12px">${esc(f.file||'')} · ${esc(f.date||'')}</span>` : '불러온 시설 목록이 없습니다.';
+  $('impClear').style.display=n?'block':'none';
+}
+function openImp(){ impInfo(); $('impMap').style.display='none'; $('impGo').style.display='none'; $('impPick').style.display=''; $('impProg').textContent=''; $('imp').style.display='flex'; }
+function closeImp(){ $('imp').style.display='none'; }
+$('impOpen').onclick=openImp;
+$('impClose').onclick=closeImp;
+$('imp').addEventListener('click',e=>{ if(e.target===$('imp')) closeImp(); });
+$('impPick').onclick=()=>{ $('impFile').value=''; $('impFile').click(); };
+$('impClear').onclick=()=>{ if(!confirm('불러온 시설 목록을 모두 지울까요? (측정 기록은 그대로입니다)')) return; localStorage.removeItem(FAC_KEY); updFacCnt(); impInfo(); toast('시설 목록을 지웠습니다'); };
+
+const norm=v=>String(v==null?'':v).trim();
+const GUESS={
+  name:/시설명|시설|국사명|국사|명칭|이름|관리번호|설비명|장소명|name/i,
+  addr:/도로명|주소|소재지|위치|지번|addr/i,
+  depth:/심도|깊이|토피|매설|depth/i,
+  lat:/위도|lat/i,
+  lng:/경도|lng|lon/i
+};
+function headerRowGuess(rows){
+  let best=0,score=-1;
+  for(let r=0;r<Math.min(rows.length,15);r++){
+    const cells=rows[r].map(norm).filter(Boolean);
+    const sc=cells.filter(c=>Object.values(GUESS).some(g=>g.test(c))).length*10 + cells.filter(c=>isNaN(Number(c))).length;
+    if(sc>score){ score=sc; best=r; }
+  }
+  return best;
+}
+function fillSelect(sel,heads,guessRe,allowNone){
+  sel.innerHTML=(allowNone?'<option value="-1">(없음)</option>':'')+heads.map((h,i)=>`<option value="${i}">${esc(h||('열 '+(i+1)))}</option>`).join('');
+  let g=heads.findIndex(h=>guessRe.test(h));
+  if(guessRe===GUESS.addr){ const road=heads.findIndex(h=>/도로명/.test(h)); if(road>=0) g=road; }
+  sel.value=String(g>=0?g:(allowNone?-1:0));
+}
+function inKorea(lat,lng){ return lat>32.5&&lat<39&&lng>124&&lng<132.5; }
+function guessCoordCols(heads,rows,hr){
+  // 제목이 위도/경도가 아니어도 숫자 범위로 찾음
+  const sample=rows.slice(hr+1,hr+30);
+  const isLat=i=>sample.filter(r=>{const v=parseFloat(r[i]);return v>32.5&&v<39;}).length>=Math.max(1,sample.length*0.6);
+  const isLng=i=>sample.filter(r=>{const v=parseFloat(r[i]);return v>124&&v<132.5;}).length>=Math.max(1,sample.length*0.6);
+  if($('selLat').value==='-1'){ const i=heads.findIndex((h,i)=>isLat(i)); if(i>=0) $('selLat').value=String(i); }
+  if($('selLng').value==='-1'){ const i=heads.findIndex((h,i)=>isLng(i)); if(i>=0) $('selLng').value=String(i); }
+}
+function readSheet(){
+  const ws=wbk.Sheets[$('selSheet').value];
+  sheetRows=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:true}).filter(r=>r.some(c=>norm(c)!==''));
+  const hr=headerRowGuess(sheetRows);
+  $('selHead').innerHTML=sheetRows.slice(0,15).map((r,i)=>`<option value="${i}">${i+1}행: ${esc(r.map(norm).filter(Boolean).slice(0,3).join(', ').slice(0,28))}</option>`).join('');
+  $('selHead').value=String(hr);
+  applyHead();
+}
+function applyHead(){
+  const hr=Number($('selHead').value);
+  const heads=(sheetRows[hr]||[]).map(norm);
+  fillSelect($('selName'),heads,GUESS.name,false);
+  fillSelect($('selAddr'),heads,GUESS.addr,true);
+  fillSelect($('selDepth'),heads,GUESS.depth,true);
+  fillSelect($('selLat'),heads,GUESS.lat,true);
+  fillSelect($('selLng'),heads,GUESS.lng,true);
+  guessCoordCols(heads,sheetRows,hr);
+  preview();
+}
+function preview(){
+  const hr=Number($('selHead').value);
+  const cols=[['시설명','selName'],['주소','selAddr'],['심도','selDepth'],['위도','selLat'],['경도','selLng']].filter(([,id])=>$(id).value!=='-1');
+  const rows=sheetRows.slice(hr+1).filter(r=>norm(r[Number($('selName').value)]));
+  $('impPrev').innerHTML='<tr>'+cols.map(([h])=>`<th>${h}</th>`).join('')+'</tr>'+
+    rows.slice(0,4).map(r=>'<tr>'+cols.map(([,id])=>`<td>${esc(norm(r[Number($(id).value)]))}</td>`).join('')+'</tr>').join('');
+  $('impFileInfo').innerHTML=`시설 <b>${rows.length}건</b>을 찾았습니다. 열이 맞는지 확인하세요.`;
+  $('impGo').disabled=!rows.length;
+}
+['selName','selAddr','selDepth','selLat','selLng'].forEach(id=>$(id).onchange=preview);
+$('selHead').onchange=applyHead;
+$('selSheet').onchange=readSheet;
+
+$('impFile').onchange=async e=>{
+  const file=e.target.files[0]; if(!file) return;
+  $('impProg').textContent='파일 읽는 중...';
+  try{
+    await loadXlsxLib();
+    const buf=await file.arrayBuffer();
+    wbk=XLSX.read(buf,{type:'array'});
+    $('selSheet').innerHTML=wbk.SheetNames.map(n=>`<option>${esc(n)}</option>`).join('');
+    $('impFile')._name=file.name;
+    readSheet();
+    $('impMap').style.display='block'; $('impPick').style.display='none'; $('impGo').style.display=''; $('impProg').textContent='';
+  }catch(err){ console.error(err); $('impProg').textContent=''; toast('엑셀 파일을 읽을 수 없습니다'); }
+};
+
+async function geocode(addr){
+  const call=async(kind)=>{
+    const r=await fetch(`https://dapi.kakao.com/v2/local/search/${kind}.json?query=${encodeURIComponent(addr)}&size=1`,{headers:{Authorization:`KakaoAK ${KAKAO_API_KEY}`}});
+    if(!r.ok) throw new Error('kakao '+r.status);
+    const d=await r.json(); const x=(d.documents||[])[0];
+    return x?{lat:parseFloat(x.y),lng:parseFloat(x.x)}:null;
+  };
+  return (await call('address')) || (await call('keyword'));
+}
+
+$('impGo').onclick=async()=>{
+  const hr=Number($('selHead').value);
+  const ci={name:+$('selName').value,addr:+$('selAddr').value,depth:+$('selDepth').value,lat:+$('selLat').value,lng:+$('selLng').value};
+  const heads=(sheetRows[hr]||[]).map(norm);
+  const used=new Set(Object.values(ci));
+  const extraCols=heads.map((h,i)=>i).filter(i=>!used.has(i)&&heads[i]&&!/^(번호|순번|no\.?|연번|#)$/i.test(heads[i])).slice(0,3);
+  const items=sheetRows.slice(hr+1).map(r=>{
+    const name=norm(r[ci.name]); if(!name) return null;
+    let lat=ci.lat>=0?parseFloat(r[ci.lat]):NaN, lng=ci.lng>=0?parseFloat(r[ci.lng]):NaN;
+    if(!isNaN(lat)&&!isNaN(lng)&&!inKorea(lat,lng)&&inKorea(lng,lat)){ const t=lat; lat=lng; lng=t; } // 위도·경도 뒤바뀜
+    const ok=!isNaN(lat)&&!isNaN(lng)&&inKorea(lat,lng);
+    const dv=ci.depth>=0?parseFloat(String(r[ci.depth]).replace(/[^0-9.\-]/g,'')):NaN;
+    return {name, addr:ci.addr>=0?norm(r[ci.addr]):'', depth:isNaN(dv)?null:dv, lat:ok?lat:null, lng:ok?lng:null,
+      extra:extraCols.map(i=>norm(r[i])).filter(Boolean).join(' / ').slice(0,60)};
+  }).filter(Boolean);
+  if(facItems().length && !confirm(`기존 시설 목록 ${facItems().length}건을 새 목록 ${items.length}건으로 바꿀까요?`)) return;
+  $('impGo').disabled=true; $('impClose').disabled=true;
+  // 좌표 없는 시설: 주소로 위치 찾기 (같은 주소는 한 번만)
+  const need=items.filter(f=>f.lat==null&&f.addr);
+  const cache=new Map(); let done=0, fail=0, stop=false;
+  const work=async()=>{ while(need.length&&!stop){ const f=need.shift();
+      try{ if(!cache.has(f.addr)) cache.set(f.addr,await geocode(f.addr)); const g=cache.get(f.addr); if(g){ f.lat=g.lat; f.lng=g.lng; } else fail++; }
+      catch(e){ fail++; if(String(e.message).includes('401')||String(e.message).includes('403')) stop=true; }
+      done++; $('impProg').textContent=`주소로 위치 찾는 중... ${done} / ${done+need.length}`; } };
+  const total=need.length;
+  if(total){ $('impProg').textContent=`주소로 위치 찾는 중... 0 / ${total}`; await Promise.all([work(),work(),work(),work()]); }
+  const noLoc=items.filter(f=>f.lat==null).length;
+  const d=new Date();
+  localStorage.setItem(FAC_KEY,JSON.stringify({file:$('impFile')._name||'',date:`${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`,items}));
+  updFacCnt(); impInfo();
+  $('impGo').disabled=false; $('impClose').disabled=false;
+  $('impProg').innerHTML=`<span style="color:#16a34a">시설 ${items.length}건을 불러왔습니다.</span>`+(noLoc?`<br><span style="color:#dc2626">위치를 찾지 못한 시설 ${noLoc}건 (주소 확인 필요)</span>`:'');
+  $('impMap').style.display='none'; $('impGo').style.display='none'; $('impPick').style.display='';
+  toast(`시설 ${items.length}건 불러오기 완료`);
+};
+updFacCnt();
 
 // 뒤로: 앱 메인 화면으로
 $('backBtn').onclick=()=>{ if(history.length>1) history.back(); else location.href='./'; };

@@ -446,8 +446,24 @@ function todayPrefix(){
   return `${d.getFullYear()}. ${String(d.getMonth()+1).padStart(2,'0')}. ${String(d.getDate()).padStart(2,'0')}.`;
 }
 
+function newId(){ return 'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function loadRecords(){
-  return JSON.parse(localStorage.getItem(DEPTH_KEY)||'[]');
+  const arr=JSON.parse(localStorage.getItem(DEPTH_KEY)||'[]');
+  let changed=false;
+  arr.forEach(r=>{ if(r&&!r.id){ r.id=newId(); changed=true; } });   // 예전 기록에도 고유 ID 부여 (사진 연결용)
+  if(changed) localStorage.setItem(DEPTH_KEY,JSON.stringify(arr));
+  return arr;
+}
+// ── 삭제 되돌리기: 지운 직후 8초 동안 [되돌리기] 버튼 ──
+function offerUndo(prevArr,msg){
+  document.getElementById('undoToast')?.remove();
+  const el=document.createElement('div');
+  el.id='undoToast';
+  el.style.cssText='position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:#1f2937;color:#fff;padding:10px 10px 10px 16px;border-radius:9999px;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.25);z-index:100000;display:flex;align-items:center;gap:12px;white-space:nowrap';
+  el.innerHTML=`<span>${esc(msg)}</span><button type="button" style="background:#fbbf24;color:#1f2937;border:0;border-radius:9999px;padding:6px 12px;font-weight:800">되돌리기</button>`;
+  el.querySelector('button').onclick=()=>{ saveRecords(prevArr); refreshStats(); el.remove(); showToast('삭제를 되돌렸습니다.','success'); };
+  document.body.appendChild(el);
+  setTimeout(()=>{ el.style.transition='opacity .3s'; el.style.opacity='0'; setTimeout(()=>el.remove(),300); },8000);
 }
 function saveRecords(arr){
   localStorage.setItem(DEPTH_KEY,JSON.stringify(arr));
@@ -604,7 +620,7 @@ document.addEventListener('DOMContentLoaded',()=>{
      const addr=currentAddr; // 도로명 → 없으면 지번 (안내 문구는 저장하지 않음)
      const now=new Date();
      const time=`${now.getFullYear()}. ${String(now.getMonth()+1).padStart(2,'0')}. ${String(now.getDate()).padStart(2,'0')}. ${now.getHours()<12?'오전':'오후'} ${String((now.getHours()%12)||12).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-     arr.push({manageNo,depth:v,time:time,address:addr,latitude:currentLat,longitude:currentLng,accuracy:currentAcc,samples:currentSamples,precise:currentPrecise||undefined,
+     arr.push({id:newId(),manageNo,depth:v,time:time,address:addr,latitude:currentLat,longitude:currentLng,accuracy:currentAcc,samples:currentSamples,precise:currentPrecise||undefined,
        rawLat:currentRaw&&currentRef?currentRaw.lat.toFixed(7):undefined, rawLng:currentRaw&&currentRef?currentRaw.lng.toFixed(7):undefined,
        refCorr:currentRef?refText(currentRef):undefined,dist:currentDist,corrected:currentCorrected,sats:currentSats,src:gpsSource,user:localStorage.getItem('depth_user_name')||'김태호',loc,locCat,judge:jd.result,limit:jd.limit});
      keepAwake();
@@ -668,14 +684,15 @@ document.addEventListener('DOMContentLoaded',()=>{
     const del=new Set(checks.filter(c=>c.checked).map(c=>Number(c.dataset.idx)));
     saveRecords(arr.filter((r,i)=>!del.has(i)));
     redraw();
-    showToast('선택한 항목을 삭제했습니다.','success');
+    offerUndo(arr,`${del.size}건을 삭제했습니다`);
   });
 
   allBtn.addEventListener('click',()=>{
     if(!confirm('모든 데이터를 삭제하시겠습니까?')) return;
-    localStorage.removeItem(DEPTH_KEY);
+    const prev=loadRecords();
+    saveRecords([]);
     redraw();
-    showToast('전체 삭제되었습니다.','success');
+    offerUndo(prev,`전체 ${prev.length}건을 삭제했습니다`);
   });
 });
 
@@ -691,7 +708,7 @@ document.addEventListener('DOMContentLoaded',()=>{
    const num=v=>{const n=parseFloat(v); return isNaN(n)?'':n;};
    const curUser=localStorage.getItem('depth_user_name')||'김태호';
    const rows=data.map((r,i)=>({번호:i+1,측정자:r.user||curUser,관리번호:r.manageNo||'',주소:r.address||'',위치구분:r.loc||'',심도_m:num(r.depth),판정:r.judge||'',기준_m:num(r.limit),측정일:'',측정시각:'',
-     위도:num(r.latitude),경도:num(r.longitude),GPS정확도_m:num(r.accuracy),GPS샘플수:num(r.samples),
+     위도:num(r.latitude),경도:num(r.longitude),GPS추정정확도_m:r.src==='tape'?'':num(r.accuracy),GPS샘플수:num(r.samples),
      직전거리_m:(num(r.dist)!==''&&num(r.dist)<=DIST_MAX_M)?num(r.dist):'',위치보정:r.corrected?'지도보정':'',사용위성수:num(r.sats),경로확인:r.spike?`튐 의심(${r.spike}m)`:'',측정모드:r.precise?`정밀 ${r.precise}초`:'',기준점보정:r.refCorr||'',보정전위도:num(r.rawLat),보정전경도:num(r.rawLng),측위방식:r.src==='chip'?'GPS칩':r.src==='web'?'웹':''}));
    const ws=XLSX.utils.json_to_sheet(rows);
    // ── 표 양식: 검은 머리글(흰 굵은 글씨), 전체 가는 테두리, 가운데 정렬 ──
@@ -1159,11 +1176,13 @@ function spikeMin(){ const v=localStorage.getItem(SPIKE_KEY); return v===null?4:
 // 저장 직후, 같은 경로의 마지막 몇 지점으로 '바로 앞 지점'이 튄 것인지 점검해서 표시
 function markSpikes(arr){
  const n=arr.length; if(n<3||!spikeMin()) return '';
+ if(arr[n-1].src==='tape'||arr[n-2].src==='tape') return '';   // 줄자 측정은 경로 위 계산값이라 판정 제외
  const key=r=>(r.manageNo||'')+'|'+String(r.time||'').slice(0,13);
  const run=[]; for(let i=n-1;i>=0&&run.length<5;i--){ const r=arr[i]; if(key(r)!==key(arr[n-1])||!r.latitude) break; run.unshift(i); }
  if(run.length<3) return '';
  const pts=run.map(i=>({lat:+arr[i].latitude,lng:+arr[i].longitude}));
- const sp=findSpikes(pts,spikeMin()).filter(x=>x.i===pts.length-2);   // 바로 앞 지점만 새로 판정 가능
+ const sp=findSpikes(pts,spikeMin()).filter(x=>x.i===pts.length-2)    // 바로 앞 지점만 새로 판정 가능
+   .filter(x=>{ const a=Math.max(...run.slice(x.i-1,x.i+2).map(i=>Number(arr[i].accuracy)||0)); return x.dev>=3*a; }); // GPS 오차 3배 이내 흔들림은 정상
  if(!sp.length) return '';
  const idx=run[sp[0].i]; arr[idx].spike=sp[0].dev;
  return `No.${idx+1} 지점이 경로에서 ${sp[0].dev}m 튄 것 같습니다. 이력에서 확인하세요.`;
@@ -1228,7 +1247,9 @@ function updateGpsStatus(){
    s.style.color='#dc2626';
    setSaveEnabled(false,'<i class="fa-solid fa-ban text-lg"></i> 정확도 미달 · 재측정 필요');
  }else{
-   s.innerHTML=`측정 완료 ±${acc}m <span style="font-weight:500;color:#64748b">(샘플 ${currentSamples}개${currentPrecise?` · 정밀 ${currentPrecise}초`:''})</span>${distText()}`+(currentRef?`<br><span style="color:#7c3aed;font-size:12px">기준점 보정 적용 (${refText(currentRef)})</span>`:'');
+   s.innerHTML=`측정 완료 추정 ±${acc}m <span style="font-weight:500;color:#64748b">(샘플 ${currentSamples}개${currentPrecise?` · 정밀 ${currentPrecise}초`:''})</span>${distText()}`+
+     (currentRef?`<br><span style="color:#7c3aed;font-size:12px">기준점 보정 적용 (${refText(currentRef)})</span>`
+               :`<br><span style="color:#94a3b8;font-size:11px;font-weight:500">추정값은 흔들림만 반영 · 한쪽으로 밀린 오차는 기준점 보정으로 줄일 수 있어요</span>`);
    s.style.color=accColor(acc);
    setSaveEnabled(true);
  }
@@ -1616,8 +1637,9 @@ document.addEventListener('DOMContentLoaded',()=>{
   };
   document.getElementById('editDelete').onclick=()=>{
     if(!confirm(`No.${editIdx+1} 기록을 삭제하시겠습니까?`)) return;
-    const arr=loadRecords(); arr.splice(editIdx,1); saveRecords(arr); close(); refreshStats();
-    showToast('삭제되었습니다.','success');
+    const arr=loadRecords(); const prev=arr.slice(); const no=editIdx+1;
+    arr.splice(editIdx,1); saveRecords(arr); close(); refreshStats();
+    offerUndo(prev,`No.${no} 기록을 삭제했습니다`);
   };
 
   /* ── 백업 알림의 '지금 백업' ── */
@@ -1712,6 +1734,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     }
     currentLat=c.lat.toFixed(7); currentLng=c.lng.toFixed(7);
     currentCorrected=true;
+    currentRef=null; currentRaw=null;   // 지도로 맞춘 위치이므로 기준점 보정·보정 전 좌표는 기록하지 않음
     calcDistFromLast();
     updateGpsStatus();
     await reverseGeocode(c.lat,c.lng);

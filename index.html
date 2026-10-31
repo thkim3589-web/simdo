@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>심도측정 시스템 V1.9 (Kakao)</title>
+    <title>심도측정 시스템 V1.10 (Kakao)</title>
     <!-- Tailwind CSS CDN 및 FontAwesome 아이콘 적용 -->
     <link rel="stylesheet" href="./lib/app.css">
     <link rel="stylesheet" href="./lib/fontawesome/css/fontawesome.min.css">
@@ -34,7 +34,7 @@
     <!-- 1. 상단 고정 헤더 -->
     <header class="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center shadow-sm">
         <h1 class="text-lg font-bold text-blue-600 flex items-center gap-2">
-            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V1.9</span>
+            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V1.10</span>
         </h1>
         <div class="flex items-center gap-2">
             <div class="flex items-center gap-1.5 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium text-gray-700">
@@ -365,7 +365,7 @@
 
         <section class="bg-white rounded-xl border border-gray-200/80 shadow-sm divide-y divide-gray-100">
           <h3 class="px-4 pt-3 pb-2 text-xs font-bold text-gray-400 tracking-wider">앱 정보</h3>
-          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">화면 버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V1.9</span></div>
+          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">화면 버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V1.10</span></div>
           <div id="settingsApkRow" style="display:none" class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">앱(APK) 버전</span><span class="font-semibold text-gray-800" id="settingsApkVer"></span></div>
           <div id="settingsUpdateRow" style="display:none" class="px-4 py-3 space-y-2">
             <button type="button" id="checkUpdateBtn" class="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold"><i class="fa-solid fa-rotate mr-1"></i>업데이트 확인</button>
@@ -608,6 +608,8 @@ document.addEventListener('DOMContentLoaded',()=>{
      const loc=currentLocText();
      const jd=judgeDepth(v,locCat);
 
+     if(!localStorage.getItem('depth_user_name') && !askUserName(true)){ showToast('측정자 이름을 입력해야 저장할 수 있습니다.','error'); return; }
+
      const manageNo=document.getElementById('manageNo')?.value?.trim()||'';
      if(!manageNo){
        if(!confirm('관리번호가 입력되지 않았습니다. 관리번호 없이 저장하시겠습니까?')) return;
@@ -624,7 +626,7 @@ document.addEventListener('DOMContentLoaded',()=>{
      const time=`${now.getFullYear()}. ${String(now.getMonth()+1).padStart(2,'0')}. ${String(now.getDate()).padStart(2,'0')}. ${now.getHours()<12?'오전':'오후'} ${String((now.getHours()%12)||12).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
      arr.push({id:newId(),manageNo,depth:v,time:time,address:addr,latitude:currentLat,longitude:currentLng,accuracy:currentAcc,samples:currentSamples,precise:currentPrecise||undefined,
        rawLat:currentRaw&&currentRef?currentRaw.lat.toFixed(7):undefined, rawLng:currentRaw&&currentRef?currentRaw.lng.toFixed(7):undefined,
-       refCorr:currentRef?refText(currentRef):undefined,dist:currentDist,corrected:currentCorrected,sats:currentSats,src:gpsSource,user:localStorage.getItem('depth_user_name')||'김태호',loc,locCat,judge:jd.result,limit:jd.limit});
+       refCorr:currentRef?refText(currentRef):undefined,dist:currentDist,corrected:currentCorrected,sats:currentSats,src:gpsSource,user:localStorage.getItem('depth_user_name')||'',loc,locCat,judge:jd.result,limit:jd.limit});
      keepAwake();
      const spikeMsg=markSpikes(arr);
      saveRecords(arr);
@@ -651,19 +653,20 @@ document.addEventListener('DOMContentLoaded',()=>{
   const nameSpan=document.getElementById('userNameDisplay');
   const btn=document.getElementById('changeUserBtn');
   function load(){
-    const n=localStorage.getItem(KEY)||'김태호';
-    nameSpan.textContent=n;
-    const sn=document.getElementById('settingsUserName'); if(sn) sn.textContent=n;
+    const n=localStorage.getItem(KEY)||'';
+    nameSpan.textContent=n||'이름 없음';
+    const sn=document.getElementById('settingsUserName'); if(sn) sn.textContent=n||'아직 입력하지 않음';
   }
+  // 전국에서 쓰는 앱: 기본 이름 없이, 처음 실행할 때 측정자 이름을 입력받음
+  window.askUserName=function(first){
+    const current=localStorage.getItem(KEY)||'';
+    const v=prompt(first?'측정자 이름을 입력하세요.\n(엑셀·GIS 자료의 측정자 칸에 들어갑니다)':'측정자 이름을 입력하세요.',current);
+    if(v && v.trim()){ localStorage.setItem(KEY,v.trim()); load(); return true; }
+    return !!current;
+  };
   load();
-  btn.addEventListener('click',()=>{
-    const current=localStorage.getItem(KEY)||'김태호';
-    const v=prompt('사용자명을 입력하세요.',current);
-    if(v && v.trim()){
-      localStorage.setItem(KEY,v.trim());
-      load();
-    }
-  });
+  if(!localStorage.getItem(KEY)) setTimeout(()=>askUserName(true),1500);
+  btn.addEventListener('click',()=>askUserName(false));
 });
 </script><script>
 
@@ -708,7 +711,7 @@ document.addEventListener('DOMContentLoaded',()=>{
    const data=loadRecords();
    if(!data.length){showToast('내보낼 데이터가 없습니다.','warn');return;}
    const num=v=>{const n=parseFloat(v); return isNaN(n)?'':n;};
-   const curUser=localStorage.getItem('depth_user_name')||'김태호';
+   const curUser=localStorage.getItem('depth_user_name')||'';
    const rows=data.map((r,i)=>({번호:i+1,측정자:r.user||curUser,관리번호:r.manageNo||'',주소:r.address||'',위치구분:r.loc||'',심도_m:num(r.depth),판정:r.judge||'',기준_m:num(r.limit),측정일:'',측정시각:'',
      위도:num(r.latitude),경도:num(r.longitude),GPS추정정확도_m:r.src==='tape'?'':num(r.accuracy),GPS샘플수:num(r.samples),
      직전거리_m:(num(r.dist)!==''&&num(r.dist)<=DIST_MAX_M)?num(r.dist):'',위치보정:r.corrected?'지도보정':'',사용위성수:num(r.sats),경로확인:r.spike?`튐 의심(${r.spike}m)`:'',측정모드:r.precise?`정밀 ${r.precise}초`:'',기준점보정:r.refCorr||'',보정전위도:num(r.rawLat),보정전경도:num(r.rawLng),측위방식:r.src==='chip'?'GPS칩':r.src==='web'?'웹':''}));
@@ -1032,7 +1035,7 @@ async function reverseGeocode(lat,lng){
 
 <script>
 /*
- * GPS 정밀 측위 로직 (V1.9)
+ * GPS 정밀 측위 로직 (V1.10)
  * 1) 예열: 앱이 열려 있는 동안 GPS를 계속 수신해 최근 샘플을 버퍼에 보관
  *    → 측정 버튼을 누르면 이미 쌓인 샘플을 활용해 보통 1~3초 안에 확정
  * 2) 평균: 이동 중 샘플·튐값 제거 후 정확도 가중평균
@@ -1965,13 +1968,13 @@ function exportGis(){
   data.forEach((r,i)=>{
     const la=parseFloat(r.latitude), lo=parseFloat(r.longitude);
     if(isNaN(la)||isNaN(lo)){ noCoord++; return; }
-    const t87=TMC.toTM(la,lo,5187), t86=TMC.toTM(la,lo,5186), t79=TMC.toTM(la,lo,5179), t81=TMC.toTM(la,lo,5181);
+    const z=TMC.zoneOf(lo), tz=TMC.toTM(la,lo,z), t86=TMC.toTM(la,lo,5186), t79=TMC.toTM(la,lo,5179), t81=TMC.toTM(la,lo,5181);
     rows.push({
       번호:i+1, 관리번호:r.manageNo||'', 측정일시:iso(r.time), 심도_m:num(r.depth), 위치구분:r.loc||'', 판정:r.judge||'', 주소:r.address||'',
       위도_WGS84:la, 경도_WGS84:lo,
-      동부원점_E_5187:t87.x, 동부원점_N_5187:t87.y,
-      중부원점_E_5186:t86.x, 중부원점_N_5186:t86.y,
       UTMK_E_5179:t79.x, UTMK_N_5179:t79.y,
+      중부원점_E_5186:t86.x, 중부원점_N_5186:t86.y,
+      지역원점:TMC.CRS[z].name.replace('(GRS80)',''), 지역원점_EPSG:z, 지역원점_E:tz.x, 지역원점_N:tz.y,
       중부원점50만_E_5181:t81.x, 중부원점50만_N_5181:t81.y,
       측정자:r.user||localStorage.getItem('depth_user_name')||'', 측위방식:srcName(r), 추정정확도_m:r.src==='tape'?'':num(r.accuracy), 위치보정:corrName(r)
     });
@@ -1982,18 +1985,18 @@ function exportGis(){
   const rg=XLSX.utils.decode_range(ws['!ref']);
   for(let C=0;C<=rg.e.c;C++){
     const h=heads[C], hc=ws[XLSX.utils.encode_cell({r:0,c:C})]; if(hc) hc.s={font:{bold:true}};
-    const fmt=/WGS84/.test(h)?'0.0000000':/_(E|N)_/.test(h)?'0.000':null;
+    const fmt=/WGS84/.test(h)?'0.0000000':/_(E|N)(_|$)/.test(h)?'0.000':null;
     if(fmt) for(let R=1;R<=rg.e.r;R++){ const c=ws[XLSX.utils.encode_cell({r:R,c:C})]; if(c&&c.t==='n') c.z=fmt; }
   }
-  ws['!cols']=heads.map(h=>({wch:/주소/.test(h)?30:/측정일시/.test(h)?20:/_(E|N)_/.test(h)?16:/WGS84/.test(h)?13:Math.max(8,h.length+2)}));
+  ws['!cols']=heads.map(h=>({wch:/주소/.test(h)?30:/측정일시/.test(h)?20:/_(E|N)(_|$)/.test(h)?16:/WGS84/.test(h)?13:Math.max(8,h.length+2)}));
   // 좌표계 안내 시트
   const guide=[
     ['열 이름','좌표계','EPSG','설명'],
-    ['위도_WGS84 / 경도_WGS84','WGS84 경위도','4326','GPS 원래 좌표(도 단위). 구글·카카오 등 대부분의 지도에서 사용'],
-    ['동부원점_E_5187 / _N_5187','GRS80 동부원점','5187','경북·대구(동경 128~130°) 지역 원점. 사내 GIS가 지역 TM을 쓰면 이 좌표일 가능성이 높음'],
-    ['중부원점_E_5186 / _N_5186','GRS80 중부원점','5186','국가 표준 중부원점(가산 Y 60만). 원점 하나로 전국을 쓰는 시스템에서 사용'],
-    ['UTMK_E_5179 / _N_5179','UTM-K (GRS80)','5179','전국 단일 좌표. 국가 공간정보·도로명주소 등에서 사용'],
-    ['중부원점50만_E_5181 / _N_5181','GRS80 중부원점(가산 Y 50만)','5181','일부 포털 지도(카카오 등)에서 사용하던 좌표'],
+    ['위도_WGS84 / 경도_WGS84','WGS84 경위도','4326','GPS 원래 좌표(도 단위). 구글·카카오 등 대부분의 지도·GIS에서 사용 (전국 공통)'],
+    ['UTMK_E_5179 / _N_5179','UTM-K (GRS80)','5179','전국 단일 좌표. 국가 공간정보·도로명주소 등에서 사용 (전국 공통)'],
+    ['중부원점_E_5186 / _N_5186','GRS80 중부원점','5186','국가 표준 중부원점(가산 N 60만). 원점 하나로 전국을 쓰는 시스템에서 사용 (전국 공통)'],
+    ['지역원점 / 지역원점_EPSG / _E / _N','GRS80 지역 원점','5185~5188','측정 위치 경도에 따라 자동 선택: 서부 5185(124~126°), 중부 5186(126~128°), 동부 5187(128~130°), 동해 5188(130°~). 지점마다 원점이 다를 수 있으니 EPSG 열을 함께 확인'],
+    ['중부원점50만_E_5181 / _N_5181','GRS80 중부원점(가산 N 50만)','5181','일부 포털 지도(카카오 등)에서 사용하던 좌표'],
     ['',''],
     ['E / N','','','E = 동쪽 방향(m), N = 북쪽 방향(m). 측량에서는 북쪽을 X, 동쪽을 Y로 부르기도 하므로 GIS 업로드 시 X·Y 칸 지정에 주의'],
     ['변환 정확도','','','국가 표준 변환식과 비교해 1mm 이내 (측정 자체의 GPS 오차는 별도)']

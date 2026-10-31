@@ -1,10 +1,10 @@
 {
  "web": {
-  "code": 107,
-  "name": "V1.7",
-  "file": "update/web-107.zip",
-  "sha256": "df579ad506cd1991dc273e4e85de6c3c919a58321d7b40048e6389b3bff1214e",
-  "size": 858253
+  "code": 108,
+  "name": "V1.8",
+  "file": "update/web-108.zip",
+  "sha256": "f5f4212d35b08959c16e0072d527e78c9ed62578fabf56f6c174ac6ad30b8a61",
+  "size": 859081
  },
  "apk": {
   "code": 8,
@@ -13,6 +13,6 @@
   "sha256": "3ee61b356743a005222e5a583c4dd00c18a2a42cb21f6bcddb9444c796aafa3c",
   "size": 892415
  },
- "notes": "브이월드 항공사진 지도 적용",
- "date": "2026-10-30"
+ "notes": "시설 찾기 내 위치 정확도 개선",
+ "date": "2026-10-31"
 }

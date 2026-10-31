@@ -103,6 +103,7 @@
     <button type="button" class="chip on" data-layer="map">일반</button>
     <button type="button" class="chip" data-layer="sat">항공</button>
   </div>
+  <div id="myAccBadge" style="display:none;position:absolute;left:50%;bottom:12px;transform:translateX(-50%);z-index:900;background:rgba(255,255,255,.95);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:800;box-shadow:0 1px 4px rgba(0,0,0,.2);white-space:nowrap"></div>
   <div class="map-ctl bottom">
     <button type="button" class="round" id="myLocBtn" aria-label="내 위치"><i class="fa-solid fa-location-crosshairs"></i></button>
   </div>
@@ -176,15 +177,53 @@ const resultLayer=L.layerGroup().addTo(map);
 let myLoc=null, myMarker=null;
 
 // ── 내 위치 ──
-function locate(fly){
-  if(!navigator.geolocation){ toast('위치 기능을 쓸 수 없습니다'); return; }
-  navigator.geolocation.getCurrentPosition(p=>{
-    myLoc={lat:p.coords.latitude,lng:p.coords.longitude};
-    if(myMarker) map.removeLayer(myMarker);
-    myMarker=L.circleMarker([myLoc.lat,myLoc.lng],{radius:7,color:'#fff',weight:2.5,fillColor:'#2563eb',fillOpacity:1}).addTo(map).bindTooltip('내 위치');
-    if(fly) map.setView([myLoc.lat,myLoc.lng],17);
-  },()=>{ if(fly) toast('현재 위치를 가져올 수 없습니다'); },{enableHighAccuracy:true,timeout:10000,maximumAge:30000});
+// ── 내 위치: 측정 화면과 같은 방식 ──
+// APK: GPS 칩 직접 수신(계속 갱신), 브라우저: watchPosition(캐시 사용 안 함)
+// 정확도 원(±m) 표시, 측정 화면의 기준점 보정이 켜져 있으면 같이 적용
+let myAcc=null, myCircle=null, mySrc='', locWatch=null, flyWhenGood=false, myBadge=null;
+function refCorrNow(lat,lng){
+  let r=null; try{ r=JSON.parse(localStorage.getItem('depth_refcorr')||'null'); }catch(e){}
+  if(!r||Date.now()-r.time>30*60*1000) return null;
+  if(map.distance([r.lat,r.lng],[lat,lng])>1000) return null;
+  return r;
 }
+function onMyPos(lat,lng,acc,src){
+  const rc=refCorrNow(lat,lng);
+  if(rc){ lat+=rc.dn/111320; lng+=rc.de/(111320*Math.cos(lat*Math.PI/180)); }
+  myLoc={lat,lng}; myAcc=acc; mySrc=src;
+  const good=acc<=30;
+  const col=good?'#2563eb':'#9ca3af';
+  if(!myMarker){
+    myCircle=L.circle([lat,lng],{radius:acc,color:col,weight:1,fillColor:col,fillOpacity:.12,interactive:false}).addTo(map);
+    myMarker=L.circleMarker([lat,lng],{radius:7,color:'#fff',weight:2.5,fillColor:col,fillOpacity:1}).addTo(map);
+  }else{
+    myCircle.setLatLng([lat,lng]).setRadius(acc).setStyle({color:col,fillColor:col});
+    myMarker.setLatLng([lat,lng]).setStyle({fillColor:col});
+  }
+  myMarker.bindTooltip(`내 위치 ±${acc.toFixed(1)}m · ${src==='chip'?'GPS칩':'혼합 측위'}${rc?' · 기준점 보정':''}`);
+  const b=$('myAccBadge'); if(b){ b.style.display='block';
+    b.textContent=good?`내 위치 ±${acc.toFixed(1)}m${rc?' (보정)':''}`:`위치 잡는 중 ±${Math.round(acc)}m`;
+    b.style.color=good?'#2563eb':'#6b7280'; }
+  if(flyWhenGood && good){ flyWhenGood=false; map.setView([lat,lng],Math.max(map.getZoom(),18)); }
+}
+function startMyLoc(){
+  if(window.SimdoAndroid&&SimdoAndroid.startGps){
+    window.__nativeGps=p=>onMyPos(p.lat,p.lng,p.acc||50,'chip');
+    window.__gnssStatus=()=>{};
+    const r=SimdoAndroid.startGps();
+    if(r==='ok'||r==='gpsoff'){ if(r==='gpsoff') toast('휴대폰 위치(GPS)가 꺼져 있습니다'); return; }
+  }
+  if(!navigator.geolocation||locWatch!==null) return;
+  locWatch=navigator.geolocation.watchPosition(p=>onMyPos(p.coords.latitude,p.coords.longitude,p.coords.accuracy||50,'web'),
+    ()=>toast('현재 위치를 가져올 수 없습니다'),{enableHighAccuracy:true,maximumAge:0,timeout:20000});
+}
+function locate(fly){
+  startMyLoc();
+  if(!fly) return;
+  if(myLoc && myAcc<=30) map.setView([myLoc.lat,myLoc.lng],Math.max(map.getZoom(),18));
+  else { flyWhenGood=true; toast('정확한 위치를 잡는 중입니다. 잠시만 기다려 주세요'); if(myLoc) map.setView([myLoc.lat,myLoc.lng],16); }
+}
+window.addEventListener('pagehide',()=>{ if(locWatch!==null) navigator.geolocation.clearWatch(locWatch); });
 $('myLocBtn').onclick=()=>locate(true);
 
 // ── 내 측정 기록에서 찾기: 관리번호·주소 일치, 시설별로 묶음 ──
@@ -256,7 +295,7 @@ function searchFacs(q){
 
 // ── 카카오 장소 검색 ──
 async function searchKakao(q){
-  const c=myLoc||map.getCenter();
+  const c=(myLoc&&myAcc<=100)?myLoc:map.getCenter();
   const url=`https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(q)}&size=15&x=${c.lng}&y=${c.lat}`;
   const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),8000);
   try{

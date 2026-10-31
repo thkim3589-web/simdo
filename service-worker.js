@@ -4,7 +4,7 @@
 // - 카카오 주소 API, 지도 타일 등 외부 요청은 관여하지 않음
 // - APK 앱은 화면을 앱 안에 내장하므로 이 서비스워커를 쓰지 않음
 
-const CACHE_NAME = 'depth-app-cache-v1-8';
+const CACHE_NAME = 'depth-app-cache-v1-9';
 const APP_SHELL = [
   './',
   './index.html',
@@ -19,7 +19,9 @@ const APP_SHELL = [
   './lib/xlsx-style.min.js',
   './lib/leaflet/leaflet.css',
   './lib/leaflet/leaflet.js',
-  './lib/vworld.js'
+  './lib/vworld.js',
+  './lib/tmcoord.js',
+  './lib/jszip.min.js'
 ];
 
 self.addEventListener('install', (event) => {

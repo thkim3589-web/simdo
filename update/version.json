@@ -1,10 +1,10 @@
 {
  "web": {
-  "code": 110,
-  "name": "V1.10",
-  "file": "update/web-110.zip",
-  "sha256": "2e29f44374df8157291c39db5a007c9eb97b9250ec556b60be2b1c9c4f7e1cae",
-  "size": 903840
+  "code": 111,
+  "name": "V1.11",
+  "file": "update/web-111.zip",
+  "sha256": "61554d738b653361b8c556eeedf90166dc8e5fe77d355dd2b3a971bac552d01b",
+  "size": 903522
  },
  "apk": {
   "code": 8,
@@ -13,6 +13,6 @@
   "sha256": "3ee61b356743a005222e5a583c4dd00c18a2a42cb21f6bcddb9444c796aafa3c",
   "size": 892415
  },
- "notes": "전국 지역원점 자동 선택, 측정자 이름 입력",
+ "notes": "GIS 업로드 엑셀 좌표를 카카오맵 기준(EPSG:5181) X/Y로 정리",
  "date": "2026-10-31"
 }

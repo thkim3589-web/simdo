@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>심도측정 시스템 V1.8 (Kakao)</title>
+    <title>심도측정 시스템 V1.9 (Kakao)</title>
     <!-- Tailwind CSS CDN 및 FontAwesome 아이콘 적용 -->
     <link rel="stylesheet" href="./lib/app.css">
     <link rel="stylesheet" href="./lib/fontawesome/css/fontawesome.min.css">
@@ -24,6 +24,7 @@
 <!-- 서식(머리글 색·테두리) 지원 엑셀 도구, 앱에 내장해 오프라인에서도 동작 -->
 <script src="./lib/xlsx-style.min.js"></script>
 <script src="./lib/vworld.js"></script>
+<script src="./lib/tmcoord.js"></script>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2563eb">
@@ -33,7 +34,7 @@
     <!-- 1. 상단 고정 헤더 -->
     <header class="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center shadow-sm">
         <h1 class="text-lg font-bold text-blue-600 flex items-center gap-2">
-            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V1.8</span>
+            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V1.9</span>
         </h1>
         <div class="flex items-center gap-2">
             <div class="flex items-center gap-1.5 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium text-gray-700">
@@ -193,8 +194,9 @@
         </section>
 
         <!-- 6. 유틸리티 관리 영역 (백업/엑셀) -->
-        <section class="pt-2 pb-6">
+        <section class="pt-2 pb-6 grid grid-cols-2 gap-2">
             <button type="button" class="w-full py-3 rounded-xl border-2 border-green-500 text-green-600 font-bold text-sm bg-white active:bg-green-50"><i class="fa-solid fa-file-excel mr-1"></i>엑셀 내보내기</button>
+            <button type="button" id="gisExportBtn" class="w-full py-3 rounded-xl border-2 border-indigo-500 text-indigo-600 font-bold text-sm bg-white active:bg-indigo-50"><i class="fa-solid fa-earth-asia mr-1"></i>GIS 업로드용</button>
         </section>
 
     </main>
@@ -363,7 +365,7 @@
 
         <section class="bg-white rounded-xl border border-gray-200/80 shadow-sm divide-y divide-gray-100">
           <h3 class="px-4 pt-3 pb-2 text-xs font-bold text-gray-400 tracking-wider">앱 정보</h3>
-          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">화면 버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V1.8</span></div>
+          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">화면 버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V1.9</span></div>
           <div id="settingsApkRow" style="display:none" class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">앱(APK) 버전</span><span class="font-semibold text-gray-800" id="settingsApkVer"></span></div>
           <div id="settingsUpdateRow" style="display:none" class="px-4 py-3 space-y-2">
             <button type="button" id="checkUpdateBtn" class="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold"><i class="fa-solid fa-rotate mr-1"></i>업데이트 확인</button>
@@ -446,8 +448,24 @@ function todayPrefix(){
   return `${d.getFullYear()}. ${String(d.getMonth()+1).padStart(2,'0')}. ${String(d.getDate()).padStart(2,'0')}.`;
 }
 
+function newId(){ return 'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function loadRecords(){
-  return JSON.parse(localStorage.getItem(DEPTH_KEY)||'[]');
+  const arr=JSON.parse(localStorage.getItem(DEPTH_KEY)||'[]');
+  let changed=false;
+  arr.forEach(r=>{ if(r&&!r.id){ r.id=newId(); changed=true; } });   // 예전 기록에도 고유 ID 부여 (사진 연결용)
+  if(changed) localStorage.setItem(DEPTH_KEY,JSON.stringify(arr));
+  return arr;
+}
+// ── 삭제 되돌리기: 지운 직후 8초 동안 [되돌리기] 버튼 ──
+function offerUndo(prevArr,msg){
+  document.getElementById('undoToast')?.remove();
+  const el=document.createElement('div');
+  el.id='undoToast';
+  el.style.cssText='position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:#1f2937;color:#fff;padding:10px 10px 10px 16px;border-radius:9999px;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.25);z-index:100000;display:flex;align-items:center;gap:12px;white-space:nowrap';
+  el.innerHTML=`<span>${esc(msg)}</span><button type="button" style="background:#fbbf24;color:#1f2937;border:0;border-radius:9999px;padding:6px 12px;font-weight:800">되돌리기</button>`;
+  el.querySelector('button').onclick=()=>{ saveRecords(prevArr); refreshStats(); el.remove(); showToast('삭제를 되돌렸습니다.','success'); };
+  document.body.appendChild(el);
+  setTimeout(()=>{ el.style.transition='opacity .3s'; el.style.opacity='0'; setTimeout(()=>el.remove(),300); },8000);
 }
 function saveRecords(arr){
   localStorage.setItem(DEPTH_KEY,JSON.stringify(arr));
@@ -604,7 +622,7 @@ document.addEventListener('DOMContentLoaded',()=>{
      const addr=currentAddr; // 도로명 → 없으면 지번 (안내 문구는 저장하지 않음)
      const now=new Date();
      const time=`${now.getFullYear()}. ${String(now.getMonth()+1).padStart(2,'0')}. ${String(now.getDate()).padStart(2,'0')}. ${now.getHours()<12?'오전':'오후'} ${String((now.getHours()%12)||12).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-     arr.push({manageNo,depth:v,time:time,address:addr,latitude:currentLat,longitude:currentLng,accuracy:currentAcc,samples:currentSamples,precise:currentPrecise||undefined,
+     arr.push({id:newId(),manageNo,depth:v,time:time,address:addr,latitude:currentLat,longitude:currentLng,accuracy:currentAcc,samples:currentSamples,precise:currentPrecise||undefined,
        rawLat:currentRaw&&currentRef?currentRaw.lat.toFixed(7):undefined, rawLng:currentRaw&&currentRef?currentRaw.lng.toFixed(7):undefined,
        refCorr:currentRef?refText(currentRef):undefined,dist:currentDist,corrected:currentCorrected,sats:currentSats,src:gpsSource,user:localStorage.getItem('depth_user_name')||'김태호',loc,locCat,judge:jd.result,limit:jd.limit});
      keepAwake();
@@ -668,14 +686,15 @@ document.addEventListener('DOMContentLoaded',()=>{
     const del=new Set(checks.filter(c=>c.checked).map(c=>Number(c.dataset.idx)));
     saveRecords(arr.filter((r,i)=>!del.has(i)));
     redraw();
-    showToast('선택한 항목을 삭제했습니다.','success');
+    offerUndo(arr,`${del.size}건을 삭제했습니다`);
   });
 
   allBtn.addEventListener('click',()=>{
     if(!confirm('모든 데이터를 삭제하시겠습니까?')) return;
-    localStorage.removeItem(DEPTH_KEY);
+    const prev=loadRecords();
+    saveRecords([]);
     redraw();
-    showToast('전체 삭제되었습니다.','success');
+    offerUndo(prev,`전체 ${prev.length}건을 삭제했습니다`);
   });
 });
 
@@ -683,7 +702,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 <script>
 document.addEventListener('DOMContentLoaded',()=>{
- const excelBtn=[...document.querySelectorAll('button')].find(b=>b.textContent.includes('엑셀'));
+ const excelBtn=[...document.querySelectorAll('button')].find(b=>b.textContent.includes('엑셀 내보내기'));
  if(!excelBtn) return;
  excelBtn.addEventListener('click',()=>{
    const data=loadRecords();
@@ -691,7 +710,7 @@ document.addEventListener('DOMContentLoaded',()=>{
    const num=v=>{const n=parseFloat(v); return isNaN(n)?'':n;};
    const curUser=localStorage.getItem('depth_user_name')||'김태호';
    const rows=data.map((r,i)=>({번호:i+1,측정자:r.user||curUser,관리번호:r.manageNo||'',주소:r.address||'',위치구분:r.loc||'',심도_m:num(r.depth),판정:r.judge||'',기준_m:num(r.limit),측정일:'',측정시각:'',
-     위도:num(r.latitude),경도:num(r.longitude),GPS정확도_m:num(r.accuracy),GPS샘플수:num(r.samples),
+     위도:num(r.latitude),경도:num(r.longitude),GPS추정정확도_m:r.src==='tape'?'':num(r.accuracy),GPS샘플수:num(r.samples),
      직전거리_m:(num(r.dist)!==''&&num(r.dist)<=DIST_MAX_M)?num(r.dist):'',위치보정:r.corrected?'지도보정':'',사용위성수:num(r.sats),경로확인:r.spike?`튐 의심(${r.spike}m)`:'',측정모드:r.precise?`정밀 ${r.precise}초`:'',기준점보정:r.refCorr||'',보정전위도:num(r.rawLat),보정전경도:num(r.rawLng),측위방식:r.src==='chip'?'GPS칩':r.src==='web'?'웹':''}));
    const ws=XLSX.utils.json_to_sheet(rows);
    // ── 표 양식: 검은 머리글(흰 굵은 글씨), 전체 가는 테두리, 가운데 정렬 ──
@@ -1013,7 +1032,7 @@ async function reverseGeocode(lat,lng){
 
 <script>
 /*
- * GPS 정밀 측위 로직 (V1.8)
+ * GPS 정밀 측위 로직 (V1.9)
  * 1) 예열: 앱이 열려 있는 동안 GPS를 계속 수신해 최근 샘플을 버퍼에 보관
  *    → 측정 버튼을 누르면 이미 쌓인 샘플을 활용해 보통 1~3초 안에 확정
  * 2) 평균: 이동 중 샘플·튐값 제거 후 정확도 가중평균
@@ -1159,11 +1178,13 @@ function spikeMin(){ const v=localStorage.getItem(SPIKE_KEY); return v===null?4:
 // 저장 직후, 같은 경로의 마지막 몇 지점으로 '바로 앞 지점'이 튄 것인지 점검해서 표시
 function markSpikes(arr){
  const n=arr.length; if(n<3||!spikeMin()) return '';
+ if(arr[n-1].src==='tape'||arr[n-2].src==='tape') return '';   // 줄자 측정은 경로 위 계산값이라 판정 제외
  const key=r=>(r.manageNo||'')+'|'+String(r.time||'').slice(0,13);
  const run=[]; for(let i=n-1;i>=0&&run.length<5;i--){ const r=arr[i]; if(key(r)!==key(arr[n-1])||!r.latitude) break; run.unshift(i); }
  if(run.length<3) return '';
  const pts=run.map(i=>({lat:+arr[i].latitude,lng:+arr[i].longitude}));
- const sp=findSpikes(pts,spikeMin()).filter(x=>x.i===pts.length-2);   // 바로 앞 지점만 새로 판정 가능
+ const sp=findSpikes(pts,spikeMin()).filter(x=>x.i===pts.length-2)    // 바로 앞 지점만 새로 판정 가능
+   .filter(x=>{ const a=Math.max(...run.slice(x.i-1,x.i+2).map(i=>Number(arr[i].accuracy)||0)); return x.dev>=3*a; }); // GPS 오차 3배 이내 흔들림은 정상
  if(!sp.length) return '';
  const idx=run[sp[0].i]; arr[idx].spike=sp[0].dev;
  return `No.${idx+1} 지점이 경로에서 ${sp[0].dev}m 튄 것 같습니다. 이력에서 확인하세요.`;
@@ -1228,7 +1249,9 @@ function updateGpsStatus(){
    s.style.color='#dc2626';
    setSaveEnabled(false,'<i class="fa-solid fa-ban text-lg"></i> 정확도 미달 · 재측정 필요');
  }else{
-   s.innerHTML=`측정 완료 ±${acc}m <span style="font-weight:500;color:#64748b">(샘플 ${currentSamples}개${currentPrecise?` · 정밀 ${currentPrecise}초`:''})</span>${distText()}`+(currentRef?`<br><span style="color:#7c3aed;font-size:12px">기준점 보정 적용 (${refText(currentRef)})</span>`:'');
+   s.innerHTML=`측정 완료 추정 ±${acc}m <span style="font-weight:500;color:#64748b">(샘플 ${currentSamples}개${currentPrecise?` · 정밀 ${currentPrecise}초`:''})</span>${distText()}`+
+     (currentRef?`<br><span style="color:#7c3aed;font-size:12px">기준점 보정 적용 (${refText(currentRef)})</span>`
+               :`<br><span style="color:#94a3b8;font-size:11px;font-weight:500">추정값은 흔들림만 반영 · 한쪽으로 밀린 오차는 기준점 보정으로 줄일 수 있어요</span>`);
    s.style.color=accColor(acc);
    setSaveEnabled(true);
  }
@@ -1616,8 +1639,9 @@ document.addEventListener('DOMContentLoaded',()=>{
   };
   document.getElementById('editDelete').onclick=()=>{
     if(!confirm(`No.${editIdx+1} 기록을 삭제하시겠습니까?`)) return;
-    const arr=loadRecords(); arr.splice(editIdx,1); saveRecords(arr); close(); refreshStats();
-    showToast('삭제되었습니다.','success');
+    const arr=loadRecords(); const prev=arr.slice(); const no=editIdx+1;
+    arr.splice(editIdx,1); saveRecords(arr); close(); refreshStats();
+    offerUndo(prev,`No.${no} 기록을 삭제했습니다`);
   };
 
   /* ── 백업 알림의 '지금 백업' ── */
@@ -1712,6 +1736,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     }
     currentLat=c.lat.toFixed(7); currentLng=c.lng.toFixed(7);
     currentCorrected=true;
+    currentRef=null; currentRaw=null;   // 지도로 맞춘 위치이므로 기준점 보정·보정 전 좌표는 기록하지 않음
     calcDistFromLast();
     updateGpsStatus();
     await reverseGeocode(c.lat,c.lng);
@@ -1920,6 +1945,71 @@ function refreshVwStatus(){
   el.innerHTML=`<span style="color:${col};font-weight:700">${d<0?'만료됨':d<=30?`만료 ${d}일 전`:'사용 중'}</span> · 만료일 ${VW.exp()} (남은 ${Math.max(0,d)}일)`+
     (VW.failed()?'<br><span style="color:#dc2626">최근 브이월드 지도를 불러오지 못했습니다. 인증키·서비스URL 등록을 확인하세요.</span>':'');
 }
+</script>
+
+<script>
+/* ── GIS 업로드용 엑셀 ──
+ * 사내 시설관리 GIS 업로드용: 한 지점 한 행, 서식 최소화, 좌표는 WGS84 + 국내 TM 4종을 모두 포함
+ * 열 이름은 GIS 양식을 받으면 맞춰 바꿀 예정
+ */
+function exportGis(){
+  const data=loadRecords();
+  if(!data.length){ showToast('내보낼 데이터가 없습니다.','warn'); return; }
+  const num=v=>{ const n=parseFloat(v); return isNaN(n)?'':n; };
+  const two=n=>String(n).padStart(2,'0');
+  const iso=t=>{ const m=String(t||'').match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*(오전|오후)\s*(\d{1,2}):(\d{2}):(\d{2})/);
+    if(!m) return String(t||''); const h=Number(m[5])%12+(m[4]==='오후'?12:0); return `${m[1]}-${two(m[2])}-${two(m[3])} ${two(h)}:${m[6]}:${m[7]}`; };
+  const srcName=r=>r.src==='chip'?'GPS칩':r.src==='web'?'혼합측위':r.src==='tape'?'줄자(맨홀기준)':'';
+  const corrName=r=>[r.corrected?'지도보정':'', r.refCorr?'기준점보정':''].filter(Boolean).join('+');
+  const rows=[]; let noCoord=0;
+  data.forEach((r,i)=>{
+    const la=parseFloat(r.latitude), lo=parseFloat(r.longitude);
+    if(isNaN(la)||isNaN(lo)){ noCoord++; return; }
+    const t87=TMC.toTM(la,lo,5187), t86=TMC.toTM(la,lo,5186), t79=TMC.toTM(la,lo,5179), t81=TMC.toTM(la,lo,5181);
+    rows.push({
+      번호:i+1, 관리번호:r.manageNo||'', 측정일시:iso(r.time), 심도_m:num(r.depth), 위치구분:r.loc||'', 판정:r.judge||'', 주소:r.address||'',
+      위도_WGS84:la, 경도_WGS84:lo,
+      동부원점_E_5187:t87.x, 동부원점_N_5187:t87.y,
+      중부원점_E_5186:t86.x, 중부원점_N_5186:t86.y,
+      UTMK_E_5179:t79.x, UTMK_N_5179:t79.y,
+      중부원점50만_E_5181:t81.x, 중부원점50만_N_5181:t81.y,
+      측정자:r.user||localStorage.getItem('depth_user_name')||'', 측위방식:srcName(r), 추정정확도_m:r.src==='tape'?'':num(r.accuracy), 위치보정:corrName(r)
+    });
+  });
+  if(!rows.length){ showToast('좌표가 있는 기록이 없습니다.','warn'); return; }
+  const ws=XLSX.utils.json_to_sheet(rows);
+  const heads=Object.keys(rows[0]);
+  const rg=XLSX.utils.decode_range(ws['!ref']);
+  for(let C=0;C<=rg.e.c;C++){
+    const h=heads[C], hc=ws[XLSX.utils.encode_cell({r:0,c:C})]; if(hc) hc.s={font:{bold:true}};
+    const fmt=/WGS84/.test(h)?'0.0000000':/_(E|N)_/.test(h)?'0.000':null;
+    if(fmt) for(let R=1;R<=rg.e.r;R++){ const c=ws[XLSX.utils.encode_cell({r:R,c:C})]; if(c&&c.t==='n') c.z=fmt; }
+  }
+  ws['!cols']=heads.map(h=>({wch:/주소/.test(h)?30:/측정일시/.test(h)?20:/_(E|N)_/.test(h)?16:/WGS84/.test(h)?13:Math.max(8,h.length+2)}));
+  // 좌표계 안내 시트
+  const guide=[
+    ['열 이름','좌표계','EPSG','설명'],
+    ['위도_WGS84 / 경도_WGS84','WGS84 경위도','4326','GPS 원래 좌표(도 단위). 구글·카카오 등 대부분의 지도에서 사용'],
+    ['동부원점_E_5187 / _N_5187','GRS80 동부원점','5187','경북·대구(동경 128~130°) 지역 원점. 사내 GIS가 지역 TM을 쓰면 이 좌표일 가능성이 높음'],
+    ['중부원점_E_5186 / _N_5186','GRS80 중부원점','5186','국가 표준 중부원점(가산 Y 60만). 원점 하나로 전국을 쓰는 시스템에서 사용'],
+    ['UTMK_E_5179 / _N_5179','UTM-K (GRS80)','5179','전국 단일 좌표. 국가 공간정보·도로명주소 등에서 사용'],
+    ['중부원점50만_E_5181 / _N_5181','GRS80 중부원점(가산 Y 50만)','5181','일부 포털 지도(카카오 등)에서 사용하던 좌표'],
+    ['',''],
+    ['E / N','','','E = 동쪽 방향(m), N = 북쪽 방향(m). 측량에서는 북쪽을 X, 동쪽을 Y로 부르기도 하므로 GIS 업로드 시 X·Y 칸 지정에 주의'],
+    ['변환 정확도','','','국가 표준 변환식과 비교해 1mm 이내 (측정 자체의 GPS 오차는 별도)']
+  ];
+  const ws2=XLSX.utils.aoa_to_sheet(guide);
+  ws2['!cols']=[{wch:30},{wch:24},{wch:7},{wch:80}];
+  for(let C=0;C<4;C++){ const c=ws2[XLSX.utils.encode_cell({r:0,c:C})]; if(c) c.s={font:{bold:true}}; }
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'GIS업로드');
+  XLSX.utils.book_append_sheet(wb,ws2,'좌표계_안내');
+  const mn=(data[0]?.manageNo||'').replace(/[\\/:*?"<>|]/g,'_');
+  const d=new Date(), ymd=`${d.getFullYear()}${two(d.getMonth()+1)}${two(d.getDate())}_${two(d.getHours())}${two(d.getMinutes())}`;
+  XLSX.writeFile(wb, mn?`GIS_${mn}_${ymd}.xlsx`:`GIS_심도측정_${ymd}.xlsx`);
+  if(noCoord) showToast(`좌표가 없는 ${noCoord}건은 제외했습니다.`,'warn');
+}
+document.addEventListener('DOMContentLoaded',()=>{ document.getElementById('gisExportBtn').onclick=exportGis; });
 </script>
 
 <script>

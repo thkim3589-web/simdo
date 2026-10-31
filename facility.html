@@ -239,7 +239,7 @@ function searchMine(q){
     if(!hay.includes(k)) return;
     const key=mn||ad;
     if(!groups.has(key)) groups.set(key,{name:mn||'(관리번호 없음)',address:ad,points:[]});
-    groups.get(key).points.push({lat,lng,no:i+1,depth:r.depth,judge:r.judge,loc:r.loc,locCat:r.locCat,time:r.time});
+    groups.get(key).points.push({lat,lng,no:i+1,depth:r.depth,judge:r.judge,loc:r.loc,locCat:r.locCat,time:r.time,acc:Number(r.accuracy)||0,src:r.src});
   });
   return [...groups.values()].map(g=>{
     const lat=g.points.reduce((a,p)=>a+p.lat,0)/g.points.length, lng=g.points.reduce((a,p)=>a+p.lng,0)/g.points.length;
@@ -360,7 +360,11 @@ function drawRoutes(){
     splitRuns(rt.pts,ROUTE_GAP).forEach(run=>{
       if(run.length<2) return;
       L.polyline(run.map(p=>[p.lat,p.lng]),{color:'#1e3a8a',weight:3,opacity:.55,dashArray:'6 6',interactive:false}).addTo(resultLayer);
-      findSpikes(run,SPIKE_MIN).forEach(sp=>{
+      findSpikes(run,SPIKE_MIN).filter(sp=>{
+        const near=run.slice(sp.i-1,sp.i+2);
+        if(near.some(q=>q.src==='tape')) return false;
+        return sp.dev>=3*Math.max(...near.map(q=>q.acc||0));   // GPS 오차 3배 이내 흔들림은 정상
+      }).forEach(sp=>{
         const p=run[sp.i];
         spikeRings.push(L.circleMarker([p.lat,p.lng],{radius:14,color:'#f97316',weight:3,fill:false,dashArray:'3 3'})
           .bindTooltip(`튐 의심 · 경로에서 ${sp.dev}m`,{direction:'right'}));

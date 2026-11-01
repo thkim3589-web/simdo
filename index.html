@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>심도측정 시스템 V1.11 (Kakao)</title>
+    <title>심도측정 시스템 V1.12 (Kakao)</title>
     <!-- Tailwind CSS CDN 및 FontAwesome 아이콘 적용 -->
     <link rel="stylesheet" href="./lib/app.css">
     <link rel="stylesheet" href="./lib/fontawesome/css/fontawesome.min.css">
@@ -34,7 +34,7 @@
     <!-- 1. 상단 고정 헤더 -->
     <header class="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center shadow-sm">
         <h1 class="text-lg font-bold text-blue-600 flex items-center gap-2">
-            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V1.11</span>
+            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V1.12</span>
         </h1>
         <div class="flex items-center gap-2">
             <div class="flex items-center gap-1.5 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium text-gray-700">
@@ -365,7 +365,7 @@
 
         <section class="bg-white rounded-xl border border-gray-200/80 shadow-sm divide-y divide-gray-100">
           <h3 class="px-4 pt-3 pb-2 text-xs font-bold text-gray-400 tracking-wider">앱 정보</h3>
-          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">화면 버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V1.11</span></div>
+          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">화면 버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V1.12</span></div>
           <div id="settingsApkRow" style="display:none" class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">앱(APK) 버전</span><span class="font-semibold text-gray-800" id="settingsApkVer"></span></div>
           <div id="settingsUpdateRow" style="display:none" class="px-4 py-3 space-y-2">
             <button type="button" id="checkUpdateBtn" class="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold"><i class="fa-solid fa-rotate mr-1"></i>업데이트 확인</button>
@@ -403,6 +403,7 @@ let currentLat='';
 let currentLng='';
 let currentAcc='';
 let currentAddr='';        // 저장용 주소(도로명 → 없으면 지번, 조회 실패 시 빈 값)
+let currentJibun='';       // 지번 주소(GIS 업로드용)
 let currentCorrected=false; // 지도에서 위치를 보정했는지
 let currentDist=null;       // 직전 저장 지점과의 거리(m)
 const DEPTH_KEY='depth_records_v35';
@@ -624,7 +625,7 @@ document.addEventListener('DOMContentLoaded',()=>{
      const addr=currentAddr; // 도로명 → 없으면 지번 (안내 문구는 저장하지 않음)
      const now=new Date();
      const time=`${now.getFullYear()}. ${String(now.getMonth()+1).padStart(2,'0')}. ${String(now.getDate()).padStart(2,'0')}. ${now.getHours()<12?'오전':'오후'} ${String((now.getHours()%12)||12).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-     arr.push({id:newId(),manageNo,depth:v,time:time,address:addr,latitude:currentLat,longitude:currentLng,accuracy:currentAcc,samples:currentSamples,precise:currentPrecise||undefined,
+     arr.push({id:newId(),manageNo,depth:v,time:time,address:addr,jibun:currentJibun||undefined,latitude:currentLat,longitude:currentLng,accuracy:currentAcc,samples:currentSamples,precise:currentPrecise||undefined,
        rawLat:currentRaw&&currentRef?currentRaw.lat.toFixed(7):undefined, rawLng:currentRaw&&currentRef?currentRaw.lng.toFixed(7):undefined,
        refCorr:currentRef?refText(currentRef):undefined,dist:currentDist,corrected:currentCorrected,sats:currentSats,src:gpsSource,user:localStorage.getItem('depth_user_name')||'',loc,locCat,judge:jd.result,limit:jd.limit});
      keepAwake();
@@ -974,7 +975,7 @@ async function reverseGeocode(lat,lng){
  gps.textContent=`${lat.toFixed(6)}, ${lng.toFixed(6)}`;
  road.textContent='주소 조회 중...';
  jibun.textContent='주소 조회 중...';
- currentAddr='';
+ currentAddr=''; currentJibun='';
 
  try{
    const controller=new AbortController();
@@ -1014,6 +1015,7 @@ async function reverseGeocode(lat,lng){
       road.textContent = doc.road_address?.address_name || '도로명 없음 (미부여 지역)';
       jibun.textContent = doc.address?.address_name || '지번 주소 없음';
       currentAddr = doc.road_address?.address_name || doc.address?.address_name || '';
+      currentJibun = doc.address?.address_name || '';
    }else{
       // API 응답은 정상이지만 좌표에 매칭되는 주소가 실제로 없는 경우(바다, 행정구역 밖 등)
       road.textContent='해당 좌표에 등록된 주소 없음';
@@ -1035,7 +1037,7 @@ async function reverseGeocode(lat,lng){
 
 <script>
 /*
- * GPS 정밀 측위 로직 (V1.11)
+ * GPS 정밀 측위 로직 (V1.12)
  * 1) 예열: 앱이 열려 있는 동안 GPS를 계속 수신해 최근 샘플을 버퍼에 보관
  *    → 측정 버튼을 누르면 이미 쌓인 샘플을 활용해 보통 1~3초 안에 확정
  * 2) 평균: 이동 중 샘플·튐값 제거 후 정확도 가중평균
@@ -1462,7 +1464,7 @@ function startGpsCollection(opt){
  currentRaw=null; currentRef=null; currentPrecise=0;
  startLiveGps();
  keepAwake();
- currentAcc=''; currentLat=''; currentLng=''; currentSamples=0; currentCorrected=false; currentDist=null; currentAddr='';
+ currentAcc=''; currentLat=''; currentLng=''; currentSamples=0; currentCorrected=false; currentDist=null; currentAddr=''; currentJibun='';
  const mb=document.getElementById('mapFixBtn'); if(mb) mb.disabled=true;
  gpsMeasuring=true; fixBase=null;
  gpsMeasureStart=Date.now();
@@ -1476,7 +1478,7 @@ function startGpsCollection(opt){
 // 저장 후 호출: 다음 지점에서 이전 좌표가 쓰이지 않도록 초기화
 function resetGpsFix(){
  fixBase=null; currentRaw=null; currentRef=null; currentPrecise=0;
- currentAcc=''; currentLat=''; currentLng=''; currentSamples=0; currentCorrected=false; currentDist=null; currentAddr='';
+ currentAcc=''; currentLat=''; currentLng=''; currentSamples=0; currentCorrected=false; currentDist=null; currentAddr=''; currentJibun='';
  const mb=document.getElementById('mapFixBtn'); if(mb) mb.disabled=true;
  setSaveEnabled(false,'<i class="fa-solid fa-location-crosshairs text-lg"></i> 다음 지점 GPS 측정 필요');
  const s=document.getElementById('gpsStatus');
@@ -1952,62 +1954,47 @@ function refreshVwStatus(){
 
 <script>
 /* ── GIS 업로드용 엑셀 ──
- * 사내 시설관리 GIS(mSKGIS, 카카오맵 기반) 업로드용: 한 지점 한 행, 서식 최소화
- * 좌표는 EPSG:5181(GRS80 중부원점, 가산 N 50만) 기준, 참고용으로 WGS84 경위도만 함께 둠
+ * 사내 시설관리 GIS(TANGO TGIS) 일괄 업로드 양식 그대로: Sheet1 하나, 20개 열
+ * 입력구분 GPS_XY, GPS_X좌표=경도, GPS_Y좌표=위도(WGS84, 소수 6자리 글자)
+ * 명칭 = 심도측정(관리번호), 상세명칭 = "심도 위치구분 판정", 시설물주소 = 지번 우선
  */
+const GIS_HEADS=['입력구분','명칭','상세명칭','GIS국사ID','시설물주소','시설물PNU','산주소여부','시설물대번지','시설물소번지','한전전산번호','한전지점코드','시설물관리번호','위도(도)','위도(분)','위도(초)','경도(도)','경도(분)','경도(초)','GPS_X좌표','GPS_Y좌표'];
 function exportGis(){
   const data=loadRecords();
   if(!data.length){ showToast('내보낼 데이터가 없습니다.','warn'); return; }
-  const num=v=>{ const n=parseFloat(v); return isNaN(n)?'':n; };
   const two=n=>String(n).padStart(2,'0');
-  const iso=t=>{ const m=String(t||'').match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*(오전|오후)\s*(\d{1,2}):(\d{2}):(\d{2})/);
-    if(!m) return String(t||''); const h=Number(m[5])%12+(m[4]==='오후'?12:0); return `${m[1]}-${two(m[2])}-${two(m[3])} ${two(h)}:${m[6]}:${m[7]}`; };
-  const srcName=r=>r.src==='chip'?'GPS칩':r.src==='web'?'혼합측위':'';
-  const corrName=r=>[r.corrected?'지도보정':'', r.refCorr?'기준점보정':''].filter(Boolean).join('+');
-  const r3=n=>Math.round(n*1000)/1000;
-  const rows=[]; let noCoord=0;
-  data.forEach((r,i)=>{
+  const aoa=[GIS_HEADS]; let noCoord=0;
+  data.forEach(r=>{
     const la=parseFloat(r.latitude), lo=parseFloat(r.longitude);
     if(isNaN(la)||isNaN(lo)){ noCoord++; return; }
-    const t=TMC.toTM(la,lo,5181);
-    rows.push({
-      번호:i+1, 관리번호:r.manageNo||'', 측정일시:iso(r.time), 심도_m:num(r.depth), 위치구분:r.loc||'', 판정:r.judge||'', 주소:r.address||'',
-      X_5181:r3(t.x), Y_5181:r3(t.y),
-      측정자:r.user||localStorage.getItem('depth_user_name')||'', 측위방식:srcName(r), 추정정확도_m:num(r.accuracy), 위치보정:corrName(r),
-      위도_WGS84:la, 경도_WGS84:lo
-    });
+    const mn=(r.manageNo||'').trim();
+    const d=parseFloat(r.depth);
+    const row=new Array(GIS_HEADS.length).fill('');
+    row[0]='GPS_XY';
+    row[1]=mn?`심도측정(${mn})`:'심도측정';
+    row[2]=[isNaN(d)?'':String(d), r.loc||'', r.judge||''].filter(Boolean).join(' ');
+    row[4]=r.jibun||r.address||'';
+    row[18]=lo.toFixed(6);
+    row[19]=la.toFixed(6);
+    aoa.push(row);
   });
-  if(!rows.length){ showToast('좌표가 있는 기록이 없습니다.','warn'); return; }
-  const ws=XLSX.utils.json_to_sheet(rows);
-  const heads=Object.keys(rows[0]);
-  const rg=XLSX.utils.decode_range(ws['!ref']);
-  for(let C=0;C<=rg.e.c;C++){
-    const h=heads[C], hc=ws[XLSX.utils.encode_cell({r:0,c:C})]; if(hc) hc.s={font:{bold:true}};
-    const fmt=/WGS84/.test(h)?'0.0000000':/_5181$/.test(h)?'0.000':null;
-    if(fmt) for(let R=1;R<=rg.e.r;R++){ const c=ws[XLSX.utils.encode_cell({r:R,c:C})]; if(c&&c.t==='n') c.z=fmt; }
+  if(aoa.length<2){ showToast('좌표가 있는 기록이 없습니다.','warn'); return; }
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  const thin={style:'thin',color:{rgb:'999999'}};
+  for(let C=0;C<GIS_HEADS.length;C++){
+    const hc=ws[XLSX.utils.encode_cell({r:0,c:C})];
+    if(hc) hc.s={fill:{patternType:'solid',fgColor:{rgb:'FFFFCC'}},alignment:{horizontal:'center'},border:{top:thin,bottom:thin,left:thin,right:thin}};
   }
-  ws['!cols']=heads.map(h=>({wch:/주소/.test(h)?30:/측정일시/.test(h)?20:/_5181$/.test(h)?14:/WGS84/.test(h)?13:Math.max(8,h.length+2)}));
-  // 좌표계 안내 시트
-  const guide=[
-    ['열 이름','좌표계','EPSG','설명'],
-    ['X_5181','GRS80 중부원점(가산 N 50만)','5181','동쪽 방향 좌표(m). 카카오맵이 내부적으로 쓰는 좌표 (전국 공통, 원점 하나)'],
-    ['Y_5181','GRS80 중부원점(가산 N 50만)','5181','북쪽 방향 좌표(m)'],
-    ['위도_WGS84 / 경도_WGS84','WGS84 경위도','4326','GPS 원래 좌표(도 단위). 참고·검증용'],
-    ['',''],
-    ['X / Y 주의','','','이 파일은 X = 동쪽(가로), Y = 북쪽(세로)입니다. 측량에서는 반대로 X = 북쪽으로 쓰는 경우가 있으니, 업로드 후 위치가 엉뚱하면 X·Y를 바꿔 보세요'],
-    ['값 범위 예','','','대구 부근: X 약 34만~35만, Y 약 26만~27만'],
-    ['변환 정확도','','','국가 표준 변환식과 비교해 1mm 이내 (측정 자체의 GPS 오차는 별도)']
-  ];
-  const ws2=XLSX.utils.aoa_to_sheet(guide);
-  ws2['!cols']=[{wch:30},{wch:24},{wch:7},{wch:80}];
-  for(let C=0;C<4;C++){ const c=ws2[XLSX.utils.encode_cell({r:0,c:C})]; if(c) c.s={font:{bold:true}}; }
+  // 좌표는 글자로 (엑셀이 숫자로 바꾸며 끝자리 0을 잃지 않도록)
+  for(let R=1;R<aoa.length;R++) [18,19].forEach(C=>{ const c=ws[XLSX.utils.encode_cell({r:R,c:C})]; if(c){ c.t='s'; c.z='@'; } });
+  const W={0:9,1:22.75,2:17.9,3:16.75,4:47.9,5:12.6,18:14.4,19:13.4};
+  ws['!cols']=GIS_HEADS.map((h,i)=>({wch:W[i]||Math.max(9,h.length*2+1)}));
   const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'GIS업로드');
-  XLSX.utils.book_append_sheet(wb,ws2,'좌표계_안내');
+  XLSX.utils.book_append_sheet(wb,ws,'Sheet1');
   const mn=(data[0]?.manageNo||'').replace(/[\\/:*?"<>|]/g,'_');
   const d=new Date(), ymd=`${d.getFullYear()}${two(d.getMonth()+1)}${two(d.getDate())}_${two(d.getHours())}${two(d.getMinutes())}`;
-  XLSX.writeFile(wb, mn?`GIS_${mn}_${ymd}.xlsx`:`GIS_심도측정_${ymd}.xlsx`);
-  if(noCoord) showToast(`좌표가 없는 ${noCoord}건은 제외했습니다.`,'warn');
+  XLSX.writeFile(wb, mn?`GIS업로드_${mn}_${ymd}.xlsx`:`GIS업로드_심도측정_${ymd}.xlsx`);
+  showToast(`GIS 업로드 양식 ${aoa.length-1}건 저장`+(noCoord?` (좌표 없는 ${noCoord}건 제외)`:''), noCoord?'warn':'success');
 }
 document.addEventListener('DOMContentLoaded',()=>{ document.getElementById('gisExportBtn').onclick=exportGis; });
 </script>

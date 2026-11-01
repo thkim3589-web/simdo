@@ -1,10 +1,10 @@
 {
  "web": {
-  "code": 112,
-  "name": "V1.12",
-  "file": "update/web-112.zip",
-  "sha256": "a769f98c6819bcd3338ce73275cd4deb69fe0f737e20052da67dc115df65ce2c",
-  "size": 903101
+  "code": 113,
+  "name": "V1.13",
+  "file": "update/web-113.zip",
+  "sha256": "9776d78702bc9aec2ea6b5a5f6f62e99175cab8555ef352817b1b72247ff8b89",
+  "size": 903148
  },
  "apk": {
   "code": 8,
@@ -13,6 +13,6 @@
   "sha256": "3ee61b356743a005222e5a583c4dd00c18a2a42cb21f6bcddb9444c796aafa3c",
   "size": 892415
  },
- "notes": "GIS 업로드 엑셀을 TANGO TGIS 일괄업로드 양식(GPS_XY, 경도/위도)으로 변경, 지번 주소 저장",
+ "notes": "GIS 업로드 상세명칭을 '심도 0.6m / 차도 / 미달 (기준 0.8m)' 형식으로 자세히",
  "date": "2026-11-01"
 }

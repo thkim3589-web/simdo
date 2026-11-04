@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>심도측정 시스템 V1.17 (Kakao)</title>
+    <title>심도측정 시스템 V1.18 (Kakao)</title>
     <!-- Tailwind CSS CDN 및 FontAwesome 아이콘 적용 -->
     <link rel="stylesheet" href="./lib/app.css">
     <link rel="stylesheet" href="./lib/fontawesome/css/fontawesome.min.css">
@@ -36,7 +36,7 @@
     <!-- 1. 상단 고정 헤더 -->
     <header class="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center shadow-sm">
         <h1 class="text-lg font-bold text-blue-600 flex items-center gap-2">
-            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V1.17</span>
+            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V1.18</span>
         </h1>
         <div class="flex items-center gap-2">
             <div class="flex items-center gap-1.5 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium text-gray-700">
@@ -370,7 +370,7 @@
 
         <section class="bg-white rounded-xl border border-gray-200/80 shadow-sm divide-y divide-gray-100">
           <h3 class="px-4 pt-3 pb-2 text-xs font-bold text-gray-400 tracking-wider">앱 정보</h3>
-          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">화면 버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V1.17</span></div>
+          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">화면 버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V1.18</span></div>
           <div id="settingsApkRow" style="display:none" class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">앱(APK) 버전</span><span class="font-semibold text-gray-800" id="settingsApkVer"></span></div>
           <div id="settingsUpdateRow" style="display:none" class="px-4 py-3 space-y-2">
             <button type="button" id="checkUpdateBtn" class="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold"><i class="fa-solid fa-rotate mr-1"></i>업데이트 확인</button>
@@ -1068,7 +1068,7 @@ async function reverseGeocode(lat,lng){
 
 <script>
 /*
- * GPS 정밀 측위 로직 (V1.17)
+ * GPS 정밀 측위 로직 (V1.18)
  * 1) 예열: 앱이 열려 있는 동안 GPS를 계속 수신해 최근 샘플을 버퍼에 보관
  *    → 측정 버튼을 누르면 이미 쌓인 샘플을 활용해 보통 1~3초 안에 확정
  * 2) 평균: 이동 중 샘플·튐값 제거 후 정확도 가중평균
@@ -2065,7 +2065,9 @@ async function fillRegions(recs,onProg){
       const res=await fetch(`https://dapi.kakao.com/v2/local/geo/coord2address.json?x=${r.longitude}&y=${r.latitude}&input_coord=WGS84`,{headers:{Authorization:`KakaoAK ${KAKAO_API_KEY}`},signal:ctl.signal});
       clearTimeout(to);
       if(res.ok){ const j=await res.json(); const g=j.documents&&j.documents[0]?regionFromDoc(j.documents[0]):null;
-        if(g){ got.set(r,g); if(!r.jibun&&j.documents[0].address) r.jibun=j.documents[0].address.address_name; } }
+        if(g){ got.set(r,g); const d0=j.documents[0];
+          if(!r.jibun&&d0.address) r.jibun=d0.address.address_name;
+          if(!r.address) r.address=(d0.road_address&&d0.road_address.address_name)||(d0.address&&d0.address.address_name)||''; } }
       else netFail++;
     }catch(e){ netFail++; }
     done++; if(onProg) onProg(done,need.length);
@@ -2077,7 +2079,7 @@ async function fillRegions(recs,onProg){
   // 저장된 기록에도 반영
   if(got.size){
     const all=loadRecords(); const byId=new Map(); recs.forEach(r=>{ if(r.id&&got.has(r)) byId.set(r.id,r); });
-    let ch=0; all.forEach(a=>{ const r=byId.get(a.id); if(r){ a.sido=r.sido; a.sgg=r.sgg; a.emd=r.emd; if(r.jibun&&!a.jibun) a.jibun=r.jibun; ch++; } });
+    let ch=0; all.forEach(a=>{ const r=byId.get(a.id); if(r){ a.sido=r.sido; a.sgg=r.sgg; a.emd=r.emd; if(r.jibun&&!a.jibun) a.jibun=r.jibun; if(r.address&&!a.address) a.address=r.address; ch++; } });
     if(ch) saveRecords(all);
   }
   return {asked:need.length, filled:got.size, failed:need.length-got.size};

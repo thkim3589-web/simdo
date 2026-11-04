@@ -1,10 +1,10 @@
 {
  "web": {
-  "code": 116,
-  "name": "V1.16",
-  "file": "update/web-116.zip",
-  "sha256": "031e568ba9d5a8905677dc6d2fcfff3aea6f6d4be79b4b66170861233933d242",
-  "size": 913982
+  "code": 117,
+  "name": "V1.17",
+  "file": "update/web-117.zip",
+  "sha256": "ec888a17355c09089cde771ec7d6120867d74ee4977424efcaeaa18d6803634e",
+  "size": 914127
  },
  "apk": {
   "code": 9,
@@ -13,6 +13,6 @@
   "sha256": "eea54cc07378117aa5e295f57f0a87545b7c9b72ba4d92a4dfa6dc8b16604817",
   "size": 950727
  },
- "notes": "예전 형식 엑셀(.xlw, 측정시간·GPS정확도 열)도 불러오기",
+ "notes": "예전 기록의 주소 안내문구 정리, 관리번호 겹친 띄어쓰기 정리",
  "date": "2026-11-04"
 }

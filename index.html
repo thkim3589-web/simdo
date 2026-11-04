@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>심도측정 시스템 V1.15 (Kakao)</title>
+    <title>심도측정 시스템 V1.16 (Kakao)</title>
     <!-- Tailwind CSS CDN 및 FontAwesome 아이콘 적용 -->
     <link rel="stylesheet" href="./lib/app.css">
     <link rel="stylesheet" href="./lib/fontawesome/css/fontawesome.min.css">
@@ -36,7 +36,7 @@
     <!-- 1. 상단 고정 헤더 -->
     <header class="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center shadow-sm">
         <h1 class="text-lg font-bold text-blue-600 flex items-center gap-2">
-            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V1.15</span>
+            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V1.16</span>
         </h1>
         <div class="flex items-center gap-2">
             <div class="flex items-center gap-1.5 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium text-gray-700">
@@ -370,7 +370,7 @@
 
         <section class="bg-white rounded-xl border border-gray-200/80 shadow-sm divide-y divide-gray-100">
           <h3 class="px-4 pt-3 pb-2 text-xs font-bold text-gray-400 tracking-wider">앱 정보</h3>
-          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">화면 버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V1.15</span></div>
+          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">화면 버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V1.16</span></div>
           <div id="settingsApkRow" style="display:none" class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">앱(APK) 버전</span><span class="font-semibold text-gray-800" id="settingsApkVer"></span></div>
           <div id="settingsUpdateRow" style="display:none" class="px-4 py-3 space-y-2">
             <button type="button" id="checkUpdateBtn" class="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold"><i class="fa-solid fa-rotate mr-1"></i>업데이트 확인</button>
@@ -812,7 +812,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 
  const input=document.createElement('input');
  input.type='file';
- input.accept='.json,application/json,.xlsx,.xls,.zip';
+ input.accept='.json,application/json,.xlsx,.xls,.xlw,.xlsm,.zip';
  input.multiple=true;
  input.style.display='none';
  document.body.appendChild(input);
@@ -1068,7 +1068,7 @@ async function reverseGeocode(lat,lng){
 
 <script>
 /*
- * GPS 정밀 측위 로직 (V1.15)
+ * GPS 정밀 측위 로직 (V1.16)
  * 1) 예열: 앱이 열려 있는 동안 GPS를 계속 수신해 최근 샘플을 버퍼에 보관
  *    → 측정 버튼을 누르면 이미 쌓인 샘플을 활용해 보통 1~3초 안에 확정
  * 2) 평균: 이동 중 샘플·튐값 제거 후 정확도 가중평균
@@ -2245,8 +2245,8 @@ function recordsFromWorkbook(wb){
       r.latitude=String(pick(row,['위도','위도_WGS84','GPS_Y좌표'])||''); r.longitude=String(pick(row,['경도','경도_WGS84','GPS_X좌표'])||'');
       r.address=String(pick(row,['주소','시설물주소'])||''); const jb=pick(row,['지번주소']); if(jb) r.jibun=String(jb);
       r.user=String(pick(row,['측정자'])||'');
-      const acc=pick(row,['추정정확도_m','GPS추정정확도_m']); if(acc!=='') r.accuracy=String(acc);
-      let t=pick(row,['측정일시']);
+      const acc=pick(row,['추정정확도_m','GPS추정정확도_m','GPS정확도_m']); if(acc!=='') r.accuracy=String(acc);
+      let t=pick(row,['측정일시','측정시간']);
       if(t==='' && row['측정일']!==undefined && row['측정일']!==''){ const dd=row['측정일'], tt=row['측정시각']; t=(typeof dd==='number')?dd+(typeof tt==='number'?tt:0):(String(dd)+' '+String(tt||'')); }
       r.time=isoToApp(t);
       const id=pick(row,['기록ID']); if(id) r.id=String(id);
@@ -2274,18 +2274,18 @@ async function readImportFiles(files){
       res.records.push(...o.records);
       if(o.facilities && !res.facilities) res.facilities=o.facilities;
       if(o.user && !res.user) res.user=o.user; if(o.judge && !res.judge) res.judge=o.judge;
-    }else if(/\.xlsx?$/.test(n)){
+    }else if(/\.(xlsx|xls|xlw|xlsm)$/.test(n)){
       res.fileCount++;
       let wb; try{ wb=XLSX.read(new Uint8Array(await getBuf()),{type:'array'}); }catch(e){ throw new Error(`${name}: 엑셀 파일을 읽지 못했습니다.`); }
       res.records.push(...recordsFromWorkbook(wb));
     }else if(n.endsWith('.zip')){
       const z=await JSZip.loadAsync(await getBuf());
-      const ents=Object.values(z.files).filter(f=>!f.dir && /\.(xlsx|xls|json)$/i.test(f.name) && !/(^|\/)(__MACOSX|\.)/.test(f.name));
+      const ents=Object.values(z.files).filter(f=>!f.dir && /\.(xlsx|xls|xlw|xlsm|json)$/i.test(f.name) && !/(^|\/)(__MACOSX|\.)/.test(f.name));
       for(const f of ents) await handle(f.name,()=>f.async('arraybuffer'),()=>f.async('string'));
     }
   }
   for(const f of files) await handle(f.name,()=>f.arrayBuffer(),()=>f.text());
-  if(!res.fileCount) throw new Error('엑셀(.xlsx), 백업(.json), 압축(.zip) 파일만 불러올 수 있습니다.');
+  if(!res.fileCount) throw new Error('엑셀(.xlsx·.xlw), 백업(.json), 압축(.zip) 파일만 불러올 수 있습니다.');
   return res;
 }
 

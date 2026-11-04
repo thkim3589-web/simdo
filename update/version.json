@@ -1,10 +1,10 @@
 {
  "web": {
-  "code": 115,
-  "name": "V1.15",
-  "file": "update/web-115.zip",
-  "sha256": "89b4290237159c2632ef69c562ca3d76dbe0cb400de0cc0ab9194954a7519bf7",
-  "size": 913959
+  "code": 116,
+  "name": "V1.16",
+  "file": "update/web-116.zip",
+  "sha256": "031e568ba9d5a8905677dc6d2fcfff3aea6f6d4be79b4b66170861233933d242",
+  "size": 913982
  },
  "apk": {
   "code": 9,
@@ -13,6 +13,6 @@
   "sha256": "eea54cc07378117aa5e295f57f0a87545b7c9b72ba4d92a4dfa6dc8b16604817",
   "size": 950727
  },
- "notes": "엑셀 불러오기 때 지도보정·샘플수·위성수 등도 함께 가져오기",
+ "notes": "예전 형식 엑셀(.xlw, 측정시간·GPS정확도 열)도 불러오기",
  "date": "2026-11-04"
 }

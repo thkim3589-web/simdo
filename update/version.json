@@ -1,18 +1,18 @@
 {
  "web": {
-  "code": 113,
-  "name": "V1.13",
-  "file": "update/web-113.zip",
-  "sha256": "9776d78702bc9aec2ea6b5a5f6f62e99175cab8555ef352817b1b72247ff8b89",
-  "size": 903148
+  "code": 114,
+  "name": "V1.14",
+  "file": "update/web-114.zip",
+  "sha256": "443532bf4192bbb654cb869ad6e691a5307a5d0d4fd94282c38c1f27d8dda7e2",
+  "size": 913779
  },
  "apk": {
-  "code": 8,
-  "name": "1.2",
+  "code": 9,
+  "name": "1.3",
   "file": "simdo.apk",
-  "sha256": "3ee61b356743a005222e5a583c4dd00c18a2a42cb21f6bcddb9444c796aafa3c",
-  "size": 892415
+  "sha256": "eea54cc07378117aa5e295f57f0a87545b7c9b72ba4d92a4dfa6dc8b16604817",
+  "size": 950727
  },
- "notes": "GIS 업로드 상세명칭을 '심도 0.6m / 차도 / 미달 (기준 0.8m)' 형식으로 자세히",
- "date": "2026-11-01"
+ "notes": "지역별 엑셀(시도_시군구 파일, 읍면동 시트), 엑셀·백업 여러 개 합치기 불러오기, 작업 목록, 대용량 저장(수만 건)",
+ "date": "2026-11-04"
 }

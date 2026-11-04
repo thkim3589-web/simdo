@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>심도측정 시스템 V1.14 (Kakao)</title>
+    <title>심도측정 시스템 V1.15 (Kakao)</title>
     <!-- Tailwind CSS CDN 및 FontAwesome 아이콘 적용 -->
     <link rel="stylesheet" href="./lib/app.css">
     <link rel="stylesheet" href="./lib/fontawesome/css/fontawesome.min.css">
@@ -36,7 +36,7 @@
     <!-- 1. 상단 고정 헤더 -->
     <header class="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center shadow-sm">
         <h1 class="text-lg font-bold text-blue-600 flex items-center gap-2">
-            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V1.14</span>
+            <i class="fa-solid fa-compass-drafting"></i> 심도측정 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">V1.15</span>
         </h1>
         <div class="flex items-center gap-2">
             <div class="flex items-center gap-1.5 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium text-gray-700">
@@ -370,7 +370,7 @@
 
         <section class="bg-white rounded-xl border border-gray-200/80 shadow-sm divide-y divide-gray-100">
           <h3 class="px-4 pt-3 pb-2 text-xs font-bold text-gray-400 tracking-wider">앱 정보</h3>
-          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">화면 버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V1.14</span></div>
+          <div class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">화면 버전</span><span class="font-semibold text-gray-800" id="settingsVersion">V1.15</span></div>
           <div id="settingsApkRow" style="display:none" class="flex justify-between px-4 py-3 text-sm"><span class="text-gray-600">앱(APK) 버전</span><span class="font-semibold text-gray-800" id="settingsApkVer"></span></div>
           <div id="settingsUpdateRow" style="display:none" class="px-4 py-3 space-y-2">
             <button type="button" id="checkUpdateBtn" class="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold"><i class="fa-solid fa-rotate mr-1"></i>업데이트 확인</button>
@@ -1068,7 +1068,7 @@ async function reverseGeocode(lat,lng){
 
 <script>
 /*
- * GPS 정밀 측위 로직 (V1.14)
+ * GPS 정밀 측위 로직 (V1.15)
  * 1) 예열: 앱이 열려 있는 동안 GPS를 계속 수신해 최근 샘플을 버퍼에 보관
  *    → 측정 버튼을 누르면 이미 쌓인 샘플을 활용해 보통 1~3초 안에 확정
  * 2) 평균: 이동 중 샘플·튐값 제거 후 정확도 가중평균
@@ -2252,6 +2252,11 @@ function recordsFromWorkbook(wb){
       const id=pick(row,['기록ID']); if(id) r.id=String(id);
       ['시도','시군구','읍면동'].forEach((h,i)=>{ const v=pick(row,[h]); if(v!=='') r[['sido','sgg','emd'][i]]=String(v); });
       r.src=String(pick(row,['측위방식']))==='GPS칩'?'chip':undefined;
+      const corr=String(pick(row,['위치보정'])||''); if(/지도보정/.test(corr)) r.corrected=true;
+      const rc=pick(row,['기준점보정']); if(rc) r.refCorr=String(rc);
+      const nn=(k,f)=>{ const v=parseFloat(pick(row,k)); if(!isNaN(v)) r[f]=v; };
+      nn(['GPS샘플수'],'samples'); nn(['사용위성수'],'sats'); nn(['직전거리_m'],'dist');
+      const rl=pick(row,['보정전위도']), rg=pick(row,['보정전경도']); if(rl!==''&&rg!==''){ r.rawLat=String(rl); r.rawLng=String(rg); }
       r.imported=true;
       out.push(r);
     });

@@ -1,18 +1,18 @@
 {
  "web": {
-  "code": 118,
-  "name": "V1.18",
-  "file": "update/web-118.zip",
-  "sha256": "458daf4582c552e086b91f64eb5756e099848629a84134f2e717744f77d1cf23",
-  "size": 914178
+  "code": 119,
+  "name": "V1.19",
+  "file": "update/web-119.zip",
+  "sha256": "498bade8b5ee0b766f68ab96896ab94cb163a5d197003ddb250a4045c32aea2c",
+  "size": 914226
  },
  "apk": {
-  "code": 9,
-  "name": "1.3",
+  "code": 10,
+  "name": "1.4",
   "file": "simdo.apk",
-  "sha256": "eea54cc07378117aa5e295f57f0a87545b7c9b72ba4d92a4dfa6dc8b16604817",
-  "size": 950727
+  "sha256": "31ba68ebb3c23012210b9388210bd94ed4e7d2f4a3e0d8d2828b903717f9880b",
+  "size": 951339
  },
- "notes": "주소가 빈 기록은 지역별 엑셀 때 좌표로 주소까지 채움",
- "date": "2026-11-04"
+ "notes": "보안 점검 반영: 보안 난수, 디버그 코드 제거, 앱 기능 연결을 자체 화면으로 제한, 파일 이름 검사, 백업 차단",
+ "date": "2026-11-11"
 }

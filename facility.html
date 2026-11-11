@@ -393,7 +393,7 @@ function render(){
       r.points.forEach(p=>{
         const pj=pointJudge(p);
         L.circleMarker([p.lat,p.lng],{_base:8,radius:dotR(8),color:'#fff',weight:1.5,fillColor:JC[pj],fillOpacity:1})
-          .bindTooltip(`No.${p.no} · ${Number(p.depth).toFixed(2)}m${pj?' · '+pj:''}`).on('click',()=>select(i,false)).addTo(resultLayer);
+          .bindTooltip(`No.${esc(p.no)} · ${Number(p.depth).toFixed(2)}m${pj?' · '+esc(pj):''}`).on('click',()=>select(i,false)).addTo(resultLayer);
         bounds.push([p.lat,p.lng]);
       });
       L.marker([r.lat,r.lng],{opacity:0}).bindTooltip(esc(r.name)+(depthText(r)?` <span style="color:${JC[groupJudge(r)]==='#9ca3af'?'#2563eb':JC[groupJudge(r)]}">${depthText(r)}</span>`:''),{permanent:!allMode,direction:'top',className:'lbl lbl-'+(groupJudge(r)||'none'),offset:[0,-6]}).on('click',()=>select(i,false)).addTo(resultLayer);
@@ -562,7 +562,7 @@ $('impFile').onchange=async e=>{
     $('impFile')._name=file.name;
     readSheet();
     $('impMap').style.display='block'; $('impPick').style.display='none'; $('impGo').style.display=''; $('impProg').textContent='';
-  }catch(err){ console.error(err); $('impProg').textContent=''; toast('엑셀 파일을 읽을 수 없습니다'); }
+  }catch(err){ $('impProg').textContent=''; toast('엑셀 파일을 읽을 수 없습니다'); }
 };
 
 async function geocode(addr){
